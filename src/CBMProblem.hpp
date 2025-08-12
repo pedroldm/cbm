@@ -17,7 +17,7 @@
 
 class CBMProblem : public Problem<CBMSol> {
    public:
-    int n, m;
+    int l, c;
     std::vector<std::vector<bool>> binaryMatrix;
 
     int movementType;
@@ -31,6 +31,7 @@ class CBMProblem : public Problem<CBMSol> {
     CBMSol construction();
     CBMSol neighbor(CBMSol sol);
     int evaluate(CBMSol& sol);
+    void printMatrix(const CBMSol* s = nullptr);
 };
 
 #endif

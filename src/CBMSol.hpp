@@ -8,4 +8,16 @@ struct CBMSol : public solution {
     int cost;
 };
 
+inline std::ostream& operator<<(std::ostream& os, const CBMSol& s) {
+    os << "Solution: [";
+    for (size_t i = 0; i < s.sol.size(); ++i) {
+        os << s.sol[i];
+        if (i + 1 < s.sol.size()) {
+            os << ", ";
+        }
+    }
+    os << "]\nCost: " << s.cost;
+    return os;
+}
+
 #endif

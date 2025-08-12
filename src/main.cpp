@@ -48,7 +48,11 @@ int main(int argc, char* argv[]) {
         new CBMProblem(filePath, movementType, maxTempProportion);
     PT<CBMSol> algo(tempMin, prob->maxTemp, tempL, MKL, PTL, tempD, upType,
                     std::max(PTL / tempUpdate, 1));
-    CBMSol sol = algo.start(1, prob);
+    CBMSol sol = algo.start(4, prob);
+    std::cout << sol;
+    prob->printMatrix();
+    std::cout << std::endl << "# ------------- #" << std::endl;
+    prob->printMatrix(&sol);
     delete prob;
 
     return 0;

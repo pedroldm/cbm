@@ -12,36 +12,35 @@ CBMProblem::CBMProblem(std::string filename, int movementType,
         throw std::runtime_error("Error opening file: " + filename);
     }
 
-    input >> this->n;
-    input >> this->m;
+    input >> this->l;
+    input >> this->c;
 
-    this->binaryMatrix.resize(m, std::vector<bool>(n + 1, false));
+    this->binaryMatrix.resize(this->l, std::vector<bool>(this->c, false));
 
-    for (int block = 0; block < m; ++block) {
-        int k;
-        input >> k;
-        for (int x = 0; x < k; ++x) {
-            int elementId;
-            input >> elementId;
-            this->binaryMatrix[block][elementId] = true;
+    int n, e;
+    for(int i = 0 ; i < this->l ; i++) {
+        input >> n;
+        for(int j = 0 ; j < n ; j++) {
+            input >> e;
+            this->binaryMatrix[i][e - 1] = true;
         }
     }
 
     this->movementType = movementType;
-    this->maxTemp = this->n * maxTempProportion;
+    this->maxTemp = this->l * maxTempProportion;
 }
 
 CBMSol CBMProblem::construction() {
     CBMSol ss;
     ss.cost = 0;
-    ss.sol.resize(n);
+    ss.sol.resize(this->c);
     std::iota(ss.sol.begin(), ss.sol.end(), 0);
     std::shuffle(ss.sol.begin(), ss.sol.end(), this->mersenne_engine);
     return ss;
 }
 
 CBMSol CBMProblem::neighbor(CBMSol s) {
-    std::uniform_int_distribution<> dist(0, this->n - 1);
+    std::uniform_int_distribution<> dist(0, this->c - 1);
     int index = dist(this->mersenne_engine);
     int newIndex = dist(this->mersenne_engine);
 
@@ -64,5 +63,38 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
 }
 
 int CBMProblem::evaluate(CBMSol& s) {
+    s.cost = 0;
 
+    for (int row = 0; row < this->l; row++) {
+        if (this->binaryMatrix[row][s.sol[0]]) {
+            s.cost++;
+        }
+    }
+    for (int col = 1 ; col < this->c ; col++) {
+        for(int row = 0 ; row < this->l ; row++) {
+            if(this->binaryMatrix[row][s.sol[col]] && !this->binaryMatrix[row][s.sol[col - 1]])
+                s.cost++;
+        }
+    }
+
+    return s.cost;
+}
+
+void CBMProblem::printMatrix(const CBMSol* s) {
+    if(!s) {
+           for (int row = 0; row < this->l; row++) {
+            for (int col = 0; col < this->c; col++) {
+                std::cout << this->binaryMatrix[row][col] << " ";
+            }
+            std::cout << "\n";
+        }
+    }
+    else {
+        for(int row = 0 ; row < this->l ; row ++) {
+            for (int col = 0; col < this->c; col++) {
+                std::cout << this->binaryMatrix[row][s->sol[col]] << " ";
+            }
+            std::cout << "\n";
+        }
+    }
 }
