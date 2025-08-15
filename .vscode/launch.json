@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "/home/pedrowsl/cbm/main_debug",
             "args": [
-                "--filePath=/home/pedrowsl/cbm/instances/a1"
+                "--filePath=/home/pedrowsl/cbm/instances/h5"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -3,12 +3,22 @@
 
 #include "PTAPI/include/Problem.h"
 
+using namespace std;
+
+enum Movement {
+    REINSERTION,
+    TWOOPT,
+    SWAP
+};
+
 struct CBMSol : public solution {
-    std::vector<int> sol;
+    vector<int> sol;
+    tuple<int, int, int, int, int> mE; /* j-1, j+1, k-1, k, e */
+    Movement movement;
     int cost;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const CBMSol& s) {
+inline ostream& operator<<(ostream& os, const CBMSol& s) {
     os << "Solution: [";
     for (size_t i = 0; i < s.sol.size(); ++i) {
         os << s.sol[i];
