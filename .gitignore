@@ -7,6 +7,10 @@
 *.o
 *.obj
 *.o.prd
+*.o.debug
+main
+main_prd
+main_debug
 
 # Precompiled Headers
 *.gch

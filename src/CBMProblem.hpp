@@ -28,8 +28,9 @@ using namespace std;
 class CBMProblem : public Problem<CBMSol> {
    public:
     int l, c;
-    vector<vector<int>> W;
-    vector<bitset<COLUMNS + 2>> B;
+    vector<vector<int>> diffMatrix;
+    vector<vector<int>> onesToZeros;
+    vector<vector<int>> zerosToOnes;
     vector<bitset<COLUMNS>> binaryMatrix;
 
     int movementType;
@@ -43,11 +44,21 @@ class CBMProblem : public Problem<CBMSol> {
     CBMSol construction();
     CBMSol neighbor(CBMSol sol);
     int evaluate(CBMSol sol);
-    void printMatrix(const CBMSol* s = nullptr);
     int nextInsertion(int& curr, unordered_set<int>& out);
-    int calculateHamming(int& curr, int& candidate);
-    void computeW();
+    int XOR(int& curr, int& candidate);
+    void computeMatrixes();
     int deltaEvaluate(CBMSol s);
+    void printS(CBMSol& s);
+
+    template <typename T>
+    void printMatrix(const vector<vector<T>>& matrix) {
+        for (const auto& row : matrix) {
+            for (const auto& elem : row) {
+                cout << elem << " ";
+            }
+            cout << "\n";
+        }
+    }
 };
 
 #endif

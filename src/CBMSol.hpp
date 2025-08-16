@@ -26,7 +26,8 @@ inline ostream& operator<<(ostream& os, const CBMSol& s) {
             os << ", ";
         }
     }
-    os << "]\nCost: " << s.cost;
+    os << "]" << endl;
+    os << "mE: " << get<0>(s.mE) << get<1>(s.mE) << get<2>(s.mE) << get<3>(s.mE) << get<4>(s.mE) << endl;
     return os;
 }
 

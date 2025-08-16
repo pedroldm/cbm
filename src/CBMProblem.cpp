@@ -10,8 +10,9 @@ CBMProblem::CBMProblem(string filename, int movementType, double constructionBia
     input >> this->c;
 
     this->binaryMatrix.resize(this->l);
-    this->B.resize(this->l);
-    this->W.resize(this->c + 2, vector<int>(this->c + 2, false));
+    this->diffMatrix.resize(this->c, vector<int>(this->c, 0));
+    this->onesToZeros.resize(this->c, vector<int>(this->c, 0));
+    this->zerosToOnes.resize(this->c, vector<int>(this->c, 0));
 
     int n, e;
     for (int i = 0; i < this->l; i++) {
@@ -21,13 +22,8 @@ CBMProblem::CBMProblem(string filename, int movementType, double constructionBia
             this->binaryMatrix[i][e - 1] = true;
         }
     }
-    for (int i = 0; i < this->l; i++) {
-        for (int j = 0; j < this->c; j++) {
-            this->B[i][j + 1] = this->binaryMatrix[i][j];
-        }
-    }
 
-    this->computeW();
+    this->computeMatrixes();
     this->movementType = movementType;
 }
 
@@ -53,26 +49,37 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
             break;
         case 3:
             s.movement = REINSERTION;
-            if (index < newIndex) newIndex -= 1;
             int element = s.sol[index];
+            int oL = getLeft(index);
+            int oR = getRight(index);
             s.sol.erase(s.sol.begin() + index);
             s.sol.insert(s.sol.begin() + newIndex, element);
-            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index]};
+            int nL = getLeft(newIndex);
+            int nR = getRight(newIndex);
+            s.mE = {oL, oR, nL, nR, element};
     }
 
     return s;
 }
 
 int CBMProblem::deltaEvaluate(CBMSol s) {
+    auto reinsertionHelper = [&](int L, int R, int e) -> int {
+        if (L != -1 && R != -1) {
+            return (this->diffMatrix[L][e] +
+                    this->diffMatrix[e][R] -
+                    this->diffMatrix[L][R]) / 2;
+        } else if (L == -1) {
+            return this->onesToZeros[e][R];
+        } else if (R == -1) {
+            return this->onesToZeros[e][L];
+        }
+    };
+
     switch(s.movement) {
         case REINSERTION: {
-            int prev = this->W[get<0>(s.mE)][get<4>(s.mE)] +
-                        this->W[get<4>(s.mE)][get<1>(s.mE)] - 
-                        this->W[get<0>(s.mE)][get<1>(s.mE)];
-            int after = this->W[get<2>(s.mE)][get<4>(s.mE)] +
-                        this->W[get<4>(s.mE)][get<3>(s.mE)] - 
-                        this->W[get<2>(s.mE)][get<3>(s.mE)];
-            s.cost += -(prev - after) / 2;
+            int prev = reinsertionHelper(get<0>(s.mE), get<1>(s.mE), get<4>(s.mE));
+            int after = reinsertionHelper(get<2>(s.mE), get<3>(s.mE), get<4>(s.mE));
+            s.cost += (-prev + after);
             break;
         }
         case SWAP: {
@@ -83,6 +90,22 @@ int CBMProblem::deltaEvaluate(CBMSol s) {
         }
     }
     return s.cost;
+}
+
+void CBMProblem::computeMatrixes() {
+    for (int i = 0; i < c; i++) {
+        for (int j = 0; j < c; j++) {
+            if (i == j) continue;
+            int o2z = 0, z2o = 0;
+            for (int row = 0; row < l; row++) {
+                if (binaryMatrix[row][i] && !binaryMatrix[row][j]) o2z++;
+                else if (!binaryMatrix[row][i] && binaryMatrix[row][j]) z2o++;
+            }
+            this->onesToZeros[i][j] = o2z;
+            this->zerosToOnes[i][j] = z2o;
+            this->diffMatrix[i][j]  = o2z + z2o;
+        }
+    }
 }
 
 int CBMProblem::evaluate(CBMSol s) {
@@ -133,7 +156,7 @@ int CBMProblem::nextInsertion(int& curr, unordered_set<int>& out) {
     vector<tuple<int, int>> similarity;
     for (int i = 0; i < this->c; i++)
         if (out.count(i))
-            similarity.push_back({this->W[curr][i], i});
+            similarity.push_back({this->l - this->diffMatrix[curr][i], i});
 
     sort(similarity.begin(), similarity.end(),
          [](const tuple<int, int>& a, const tuple<int, int>& b) {
@@ -159,38 +182,11 @@ int CBMProblem::nextInsertion(int& curr, unordered_set<int>& out) {
     return get<1>(similarity[chosen_idx]);
 }
 
-void CBMProblem::computeW() {
-    int similarity;
-    for(int i = 0 ; i <= this->c ; i++) {
-        for(int j = i + 1 ; j <= this->c ; j++) {
-            similarity = this->calculateHamming(i, j);
-            this->W[i][j] = similarity;
-            this->W[j][i] = similarity;
+void CBMProblem::printS(CBMSol& s) {
+    for (int row = 0; row < this->l; row++) {
+        for (int col = 0; col < this->c; col++) {
+            cout << this->binaryMatrix[row][s.sol[col]] << " ";
         }
-    }
-}
-
-int CBMProblem::calculateHamming(int& curr, int& candidate) {
-    int diffs = 0;
-    for (int i = 0; i < l; ++i)
-        diffs += (B[i][curr] ^ B[i][candidate]);
-    return diffs;
-}
-
-void CBMProblem::printMatrix(const CBMSol* s) {
-    if (!s) {
-        for (int row = 0; row < this->l; row++) {
-            for (int col = 0; col < this->c; col++) {
-                cout << this->binaryMatrix[row][col] << " ";
-            }
-            cout << "\n";
-        }
-    } else {
-        for (int row = 0; row < this->l; row++) {
-            for (int col = 0; col < this->c; col++) {
-                cout << this->binaryMatrix[row][s->sol[col]] << " ";
-            }
-            cout << "\n";
-        }
+        cout << endl;
     }
 }

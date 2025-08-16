@@ -5,6 +5,8 @@
 #include "CBMProblem.hpp"
 #include "PTAPI/include/PT.h"
 
+void validateDeltaF(CBMProblem* prob);
+
 int main(int argc, char* argv[]) {
     float tempMin = 0.3f;
     float tempMax = 2.0f;
@@ -47,21 +49,55 @@ int main(int argc, char* argv[]) {
 
     CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+
+    validateDeltaF(prob);
     
     CBMSol sol = prob->construction();
+    sol.sol = {0, 1, 3, 2, 4};
     int cost = prob->evaluate(sol);
+    cout << "Custo Original: " << cost << endl;
     
     CBMSol newS = prob->neighbor(sol);
-
     int newCost = prob->evaluate(newS);
+    cout << "Novo Custo (n²): " << newCost << endl;
     newS.cost = cost;
     int deltaCost = prob->deltaEvaluate(newS);
-    //CBMSol sol = algo.start(1, prob);
-    //cout << sol << endl;
-    //prob->printMatrix();
-    //cout << endl << "# ------------- #" << endl;
-    //prob->printMatrix(&sol);
+    cout << "Novo Custo (1): " << deltaCost << endl;
+    if(newCost != deltaCost) {
+        newS.cost = cost;
+        int deltaCost = prob->deltaEvaluate(newS);
+        throw runtime_error("Unmatch: " + to_string(newCost) + " != " + to_string(deltaCost));
+    } else {
+        cout << newCost << " = " << deltaCost << endl;;
+    }
+
     delete prob;
 
     return 0;
+}
+
+void validateDeltaF(CBMProblem* prob) {
+    for(int i = 0 ; i < 1000 ; i++) {
+        CBMSol sol = prob->construction();
+        int cost = prob->evaluate(sol);
+        cout << "Sol: " << sol << endl;
+        cout << "Custo Original: " << cost << endl;
+        prob->printS(sol);
+        
+        CBMSol newS = prob->neighbor(sol);
+        cout << "newS: " << newS << endl;
+        prob->printS(newS);
+        int newCost = prob->evaluate(newS);
+        cout << "\nNovo Custo (n²): " << newCost << endl;
+        newS.cost = cost;
+        int deltaCost = prob->deltaEvaluate(newS);
+        cout << "Novo Custo (1): " << deltaCost << endl;
+        if(newCost != deltaCost) {
+            newS.cost = cost;
+            int deltaCost = prob->deltaEvaluate(newS);
+            throw runtime_error("Unmatch: " + to_string(newCost) + " != " + to_string(deltaCost));
+        } else {
+            cout << newCost << " = " << deltaCost << endl;;
+        }
+    }
 }
