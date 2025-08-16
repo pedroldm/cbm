@@ -38,14 +38,16 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
     switch (this->movementType) {
         case 1:
             s.movement = SWAP;
+            index = 1;
+            newIndex = 4;
+            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index], s.sol[newIndex]};
             swap(s.sol[index], s.sol[newIndex]);
-            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index]};
             break;
         case 2:
             s.movement = TWOOPT;
             if (index > newIndex) swap(index, newIndex);
+            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index], s.sol[newIndex]};
             reverse(s.sol.begin() + index, s.sol.begin() + newIndex + 1);
-            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index]};
             break;
         case 3:
             s.movement = REINSERTION;
@@ -56,14 +58,14 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
             s.sol.insert(s.sol.begin() + newIndex, element);
             int nL = getLeft(newIndex);
             int nR = getRight(newIndex);
-            s.mE = {oL, oR, nL, nR, element};
+            s.mE = {oL, oR, nL, nR, element, 0};
     }
 
     return s;
 }
 
-int CBMProblem::deltaEvaluate(CBMSol s) {
-    auto reinsertionHelper = [&](int L, int R, int e) -> int {
+int CBMProblem::deltaEval(CBMSol& s) {
+    auto lambda = [&](int L, int R, int e) -> int {
         if (L != -1 && R != -1) {
             return (this->diffMatrix[L][e] +
                     this->diffMatrix[e][R] -
@@ -77,12 +79,17 @@ int CBMProblem::deltaEvaluate(CBMSol s) {
 
     switch(s.movement) {
         case REINSERTION: {
-            int prev = reinsertionHelper(get<0>(s.mE), get<1>(s.mE), get<4>(s.mE));
-            int after = reinsertionHelper(get<2>(s.mE), get<3>(s.mE), get<4>(s.mE));
+            int prev = lambda(get<0>(s.mE), get<1>(s.mE), get<4>(s.mE));
+            int after = lambda(get<2>(s.mE), get<3>(s.mE), get<4>(s.mE));
             s.cost += (-prev + after);
             break;
         }
         case SWAP: {
+            int prevLeft = lambda(get<0>(s.mE), get<1>(s.mE), get<4>(s.mE));
+            int prevRight = lambda(get<2>(s.mE), get<3>(s.mE), get<5>(s.mE));
+            int afterLeft = lambda(get<2>(s.mE), get<3>(s.mE), get<4>(s.mE));
+            int afterRight = lambda(get<0>(s.mE), get<1>(s.mE), get<5>(s.mE));
+            s.cost += -(prevLeft + prevRight) + (afterLeft + afterRight);
             break;
         }
         case TWOOPT: {
@@ -108,7 +115,11 @@ void CBMProblem::computeMatrixes() {
     }
 }
 
-int CBMProblem::evaluate(CBMSol s) {
+int CBMProblem::evaluate(CBMSol& s) {
+    return (s.cost) ? this->deltaEval(s) : this->completeEval(s);
+}
+
+int CBMProblem::completeEval(CBMSol& s) {
     s.cost = 0;
 
     for (int row = 0; row < this->l; row++) {

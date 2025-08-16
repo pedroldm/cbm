@@ -8,10 +8,10 @@
 void validateDeltaF(CBMProblem* prob);
 
 int main(int argc, char* argv[]) {
-    float tempMin = 0.3f;
+    float tempMin = 0.05f;
     float tempMax = 2.0f;
     double constructionBias = 2.5;
-    int tempL = 12;
+    int tempL = 4;
     float MKL = 400;
     int PTL = 2000;
     int tempD = 4;
@@ -49,27 +49,8 @@ int main(int argc, char* argv[]) {
 
     CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-
-    validateDeltaF(prob);
-    
-    CBMSol sol = prob->construction();
-    sol.sol = {0, 1, 3, 2, 4};
-    int cost = prob->evaluate(sol);
-    cout << "Custo Original: " << cost << endl;
-    
-    CBMSol newS = prob->neighbor(sol);
-    int newCost = prob->evaluate(newS);
-    cout << "Novo Custo (n²): " << newCost << endl;
-    newS.cost = cost;
-    int deltaCost = prob->deltaEvaluate(newS);
-    cout << "Novo Custo (1): " << deltaCost << endl;
-    if(newCost != deltaCost) {
-        newS.cost = cost;
-        int deltaCost = prob->deltaEvaluate(newS);
-        throw runtime_error("Unmatch: " + to_string(newCost) + " != " + to_string(deltaCost));
-    } else {
-        cout << newCost << " = " << deltaCost << endl;;
-    }
+    CBMSol sol = algo.start(4, prob);
+    cout << sol;
 
     delete prob;
 
@@ -90,11 +71,11 @@ void validateDeltaF(CBMProblem* prob) {
         int newCost = prob->evaluate(newS);
         cout << "\nNovo Custo (n²): " << newCost << endl;
         newS.cost = cost;
-        int deltaCost = prob->deltaEvaluate(newS);
+        int deltaCost = prob->deltaEval(newS);
         cout << "Novo Custo (1): " << deltaCost << endl;
         if(newCost != deltaCost) {
             newS.cost = cost;
-            int deltaCost = prob->deltaEvaluate(newS);
+            int deltaCost = prob->deltaEval(newS);
             throw runtime_error("Unmatch: " + to_string(newCost) + " != " + to_string(deltaCost));
         } else {
             cout << newCost << " = " << deltaCost << endl;;

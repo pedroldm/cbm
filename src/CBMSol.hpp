@@ -13,7 +13,7 @@ enum Movement {
 
 struct CBMSol : public solution {
     vector<int> sol;
-    tuple<int, int, int, int, int> mE; /* j-1, j+1, k-1, k, e */
+    tuple<int, int, int, int, int, int> mE;
     Movement movement;
     int cost;
 };
@@ -27,7 +27,7 @@ inline ostream& operator<<(ostream& os, const CBMSol& s) {
         }
     }
     os << "]" << endl;
-    os << "mE: " << get<0>(s.mE) << get<1>(s.mE) << get<2>(s.mE) << get<3>(s.mE) << get<4>(s.mE) << endl;
+    os << "Cost: " << s.cost << endl;
     return os;
 }
 

@@ -43,11 +43,11 @@ class CBMProblem : public Problem<CBMSol> {
     CBMProblem(string filename, int movementType, double constructionBias);
     CBMSol construction();
     CBMSol neighbor(CBMSol sol);
-    int evaluate(CBMSol sol);
+    int completeEval(CBMSol& s);
     int nextInsertion(int& curr, unordered_set<int>& out);
-    int XOR(int& curr, int& candidate);
     void computeMatrixes();
-    int deltaEvaluate(CBMSol s);
+    int deltaEval(CBMSol& s);
+    int evaluate(CBMSol& s);
     void printS(CBMSol& s);
 
     template <typename T>
