@@ -21,7 +21,7 @@
 #include "CBMSol.hpp"
 #include "PTAPI/include/Problem.h"
 
-#define COLUMNS 10000
+#define COLUMNS 1000
 
 using namespace std;
 

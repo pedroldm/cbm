@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     int tempD = 4;
     int upType = 1;
     int tempUpdate = 3;
-    int movementType = 3;
+    int movementType = 2;
     int threads = 4;
     string filePath;
 
@@ -53,9 +53,11 @@ int main(int argc, char* argv[]) {
     }
 
     CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias);
-    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-    CBMSol sol = algo.start(threads, prob);
-    cout << sol;
+    //PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+    //CBMSol sol = algo.start(threads, prob);
+    //cout << sol;
+
+    validateDeltaF(prob);
 
     delete prob;
 
@@ -66,13 +68,8 @@ void validateDeltaF(CBMProblem* prob) {
     for(int i = 0 ; i < 1000 ; i++) {
         CBMSol sol = prob->construction();
         int cost = prob->evaluate(sol);
-        cout << "Sol: " << sol << endl;
-        cout << "Custo Original: " << cost << endl;
-        prob->printS(sol);
-        
         CBMSol newS = prob->neighbor(sol);
-        cout << "newS: " << newS << endl;
-        prob->printS(newS);
+        newS.cost = 0;
         int newCost = prob->evaluate(newS);
         cout << "\nNovo Custo (n²): " << newCost << endl;
         newS.cost = cost;

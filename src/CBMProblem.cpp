@@ -29,25 +29,36 @@ CBMProblem::CBMProblem(string filename, int movementType, double constructionBia
 
 CBMSol CBMProblem::neighbor(CBMSol s) {
     uniform_int_distribution<> dist(0, this->c - 1);
+    uniform_int_distribution<> movementDist(1, 3);
     int index = dist(this->mersenne_engine);
     int newIndex = dist(this->mersenne_engine);
 
     auto getLeft = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
     auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
 
-    switch (this->movementType) {
+    int movement = (this->movementType < 4) ? this->movementType : movementDist(this->mersenne_engine);
+
+    switch (movement) {
         case 1:
-            s.movement = SWAP;
-            index = 1;
-            newIndex = 4;
-            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index], s.sol[newIndex]};
-            swap(s.sol[index], s.sol[newIndex]);
+            if (index > newIndex) swap(index, newIndex);
+            if(abs(newIndex - index) > 1) {
+                s.movement = SWAP;
+                s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index], s.sol[newIndex]};
+                swap(s.sol[index], s.sol[newIndex]);
+            }
+            else {
+                s.movement = ADJACENTSWAP;
+                s.mE = {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)};
+                swap(s.sol[index], s.sol[newIndex]);
+                s.mE.insert(s.mE.end(), {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)});
+            }
             break;
         case 2:
-            s.movement = TWOOPT;
             if (index > newIndex) swap(index, newIndex);
-            s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index], s.sol[newIndex]};
+            s.movement = TWOOPT;
+            s.mE = {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)};
             reverse(s.sol.begin() + index, s.sol.begin() + newIndex + 1);
+            s.mE.insert(s.mE.end(), {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)});
             break;
         case 3:
             s.movement = REINSERTION;
@@ -58,7 +69,7 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
             s.sol.insert(s.sol.begin() + newIndex, element);
             int nL = getLeft(newIndex);
             int nR = getRight(newIndex);
-            s.mE = {oL, oR, nL, nR, element, 0};
+            s.mE = {oL, oR, nL, nR, element};
     }
 
     return s;
@@ -79,20 +90,33 @@ int CBMProblem::deltaEval(CBMSol& s) {
 
     switch(s.movement) {
         case REINSERTION: {
-            int prev = lambda(get<0>(s.mE), get<1>(s.mE), get<4>(s.mE));
-            int after = lambda(get<2>(s.mE), get<3>(s.mE), get<4>(s.mE));
+            int prev = lambda(s.mE[0], s.mE[1], s.mE[4]);
+            int after = lambda(s.mE[2], s.mE[3], s.mE[4]);
             s.cost += (-prev + after);
             break;
         }
         case SWAP: {
-            int prevLeft = lambda(get<0>(s.mE), get<1>(s.mE), get<4>(s.mE));
-            int prevRight = lambda(get<2>(s.mE), get<3>(s.mE), get<5>(s.mE));
-            int afterLeft = lambda(get<2>(s.mE), get<3>(s.mE), get<4>(s.mE));
-            int afterRight = lambda(get<0>(s.mE), get<1>(s.mE), get<5>(s.mE));
+            int prevLeft = lambda(s.mE[0], s.mE[1], s.mE[4]);
+            int prevRight = lambda(s.mE[2], s.mE[3], s.mE[5]);
+            int afterLeft = lambda(s.mE[2], s.mE[3], s.mE[4]);
+            int afterRight = lambda(s.mE[0], s.mE[1], s.mE[5]);
             s.cost += -(prevLeft + prevRight) + (afterLeft + afterRight);
             break;
         }
+        case ADJACENTSWAP: {
+            int prevLeft = lambda(s.mE[0], s.mE[2], s.mE[1]);
+            int prevRight = lambda(s.mE[3], s.mE[5], s.mE[4]);
+            int afterLeft = lambda(s.mE[6], s.mE[8], s.mE[7]);
+            int afterRight = lambda(s.mE[9], s.mE[11], s.mE[10]);
+            s.cost += (-(prevLeft + prevRight) + (afterLeft + afterRight))/2;
+            break;
+        }
         case TWOOPT: {
+            int prevLeft = lambda(s.mE[0], s.mE[2], s.mE[1]);
+            int prevRight = lambda(s.mE[3], s.mE[5], s.mE[4]);
+            int afterLeft = lambda(s.mE[6], s.mE[8], s.mE[7]);
+            int afterRight = lambda(s.mE[9], s.mE[11], s.mE[10]);
+            s.cost += -(prevLeft + prevRight) + (afterLeft + afterRight);
             break;
         }
     }

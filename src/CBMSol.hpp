@@ -8,12 +8,14 @@ using namespace std;
 enum Movement {
     REINSERTION,
     TWOOPT,
-    SWAP
+    SWAP,
+    ADJACENTSWAP
 };
+
 
 struct CBMSol : public solution {
     vector<int> sol;
-    tuple<int, int, int, int, int, int> mE;
+    vector<int> mE;
     Movement movement;
     int cost;
 };

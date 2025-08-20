@@ -51,9 +51,11 @@ class InstanceRunner:
 
     def call_solver(self):
         parameters = [f"--{key}={val}" for key, val in self.parameters.items()]
+        command = ["./main_prd", f"--filePath={self.instance_path}"] + parameters
+        print(f"Running: {" ".join(command)}")
         start_time = time.time()
         result = subprocess.run(
-            ["./main_prd", f"--filePath={self.instance_path}"] + parameters,
+            command,
             cwd=self.root_path,
             check=True,
             capture_output=True,
