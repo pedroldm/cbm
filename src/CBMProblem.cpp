@@ -224,35 +224,3 @@ void CBMProblem::printS(CBMSol& s) {
         cout << endl;
     }
 }
-
-
-void run(float tempMin, float tempMax, int tempL, float MKL, int PTL, int tempD, int upType, int tempUpdate) {
-    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-    CBMSol sol = algo.start(threads, prob);
-
-    json output = prob.toJson(sol);
-    std::cout << output.dump(2) << std::endl;
-}
-
-json CBMProblem::toJson(const CBMSol& s) {
-    json j;
-
-    // cost
-    j["cost"] = s.cost;
-
-    // sol vector
-    j["sol"] = s.sol;
-
-    // binary matrix under permutation of s.sol
-    json matrix = json::array();
-    for (int row = 0; row < this->l; row++) {
-        json rowArray = json::array();
-        for (int col = 0; col < this->c; col++) {
-            rowArray.push_back(this->binaryMatrix[row][s.sol[col]] ? 1 : 0);
-        }
-        matrix.push_back(rowArray);
-    }
-    j["matrix"] = matrix;
-
-    return j;
-}
