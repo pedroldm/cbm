@@ -20,10 +20,13 @@
 
 #include "CBMSol.hpp"
 #include "PTAPI/include/Problem.h"
+#include "PTAPI/include/PT.h"
+#include "IO/json.hpp"
 
 #define COLUMNS 1000
 
 using namespace std;
+using json = nlohmann::json;
 
 class CBMProblem : public Problem<CBMSol> {
    public:
@@ -50,6 +53,7 @@ class CBMProblem : public Problem<CBMSol> {
     int deltaEval(CBMSol& s);
     int evaluate(CBMSol& s);
     void printS(CBMSol& s);
+    json toJson(const CBMSol& s);
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {
@@ -60,6 +64,8 @@ class CBMProblem : public Problem<CBMSol> {
             cout << "\n";
         }
     }
+
+    void run();
 };
 
 #endif

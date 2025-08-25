@@ -3,7 +3,7 @@
 #include <string>
 
 #include "CBMProblem.hpp"
-#include "PTAPI/include/PT.h"
+
 
 void validateDeltaF(CBMProblem* prob);
 
@@ -53,11 +53,7 @@ int main(int argc, char* argv[]) {
     }
 
     CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias);
-    //PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-    //CBMSol sol = algo.start(threads, prob);
-    //cout << sol;
-
-    validateDeltaF(prob);
+    CBMProblem->run();
 
     delete prob;
 
