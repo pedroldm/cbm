@@ -6,14 +6,12 @@ import time
 class InstanceRunner:
     root_path: str
     instance_path: str
-    output_path: str
 
-    def __init__(self, parameters:dict, root_path: str, instance_path: str, header_path: str, output_path: str):
+    def __init__(self, parameters:dict, root_path: str, instance_path: str, header_path: str):
         self.parameters = parameters
         self.root_path = root_path
         self.instance_path = instance_path
         self.header_path = header_path
-        self.output_path = output_path
 
     def compile(self):
         try:
@@ -52,7 +50,6 @@ class InstanceRunner:
     def call_solver(self):
         parameters = [f"--{key}={val}" for key, val in self.parameters.items()]
         command = ["./main_prd", f"--filePath={self.instance_path}"] + parameters
-        print(f"Running: {" ".join(command)}")
         start_time = time.time()
         result = subprocess.run(
             command,

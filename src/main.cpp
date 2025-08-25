@@ -4,8 +4,12 @@
 
 #include "CBMProblem.hpp"
 #include "PTAPI/include/PT.h"
+#include "IO/json.hpp"
+
+using json = nlohmann::json;
 
 void validateDeltaF(CBMProblem* prob);
+void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo);
 
 int main(int argc, char* argv[]) {
     float tempMin = 0.05f;
@@ -53,15 +57,33 @@ int main(int argc, char* argv[]) {
     }
 
     CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias);
-    //PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-    //CBMSol sol = algo.start(threads, prob);
-    //cout << sol;
+    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+    CBMSol sol = algo.start(threads, prob);
 
-    validateDeltaF(prob);
+    jsonOutput(sol, *prob, algo);
 
     delete prob;
 
     return 0;
+}
+
+void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo) {
+    json j;
+
+    j["cost"] = s.cost;
+    j["solution"] = s.sol;
+
+    vector<vector<int>> matrix;
+    for (int row = 0; row < prob.l; row++) {
+        vector<int> rowVec;
+        for (int col = 0; col < prob.c; col++) {
+            rowVec.push_back(prob.binaryMatrix[row][s.sol[col]]);
+        }
+        matrix.push_back(rowVec);
+    }
+    j["matrix"] = matrix;
+
+    cout << j.dump(4) << endl;
 }
 
 void validateDeltaF(CBMProblem* prob) {
