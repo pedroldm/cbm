@@ -13,6 +13,7 @@ CBMProblem::CBMProblem(string filename, int movementType, double constructionBia
     this->diffMatrix.resize(this->c, vector<int>(this->c, 0));
     this->onesToZeros.resize(this->c, vector<int>(this->c, 0));
     this->zerosToOnes.resize(this->c, vector<int>(this->c, 0));
+    this->onesToOnes.resize(this->c, vector<int>(this->c, 0));
 
     int n, e;
     for (int i = 0; i < this->l; i++) {
@@ -47,18 +48,16 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
                 swap(s.sol[index], s.sol[newIndex]);
             }
             else {
-                s.movement = ADJACENTSWAP;
-                s.mE = {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)};
+                s.movement = TWOOPT;
+                s.mE = {getLeft(index), s.sol[index], s.sol[newIndex], getRight(newIndex)};
                 swap(s.sol[index], s.sol[newIndex]);
-                s.mE.insert(s.mE.end(), {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)});
             }
             break;
         case 2:
             if (index > newIndex) swap(index, newIndex);
             s.movement = TWOOPT;
-            s.mE = {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)};
+            s.mE = {getLeft(index), s.sol[index], s.sol[newIndex], getRight(newIndex)};
             reverse(s.sol.begin() + index, s.sol.begin() + newIndex + 1);
-            s.mE.insert(s.mE.end(), {getLeft(index), s.sol[index], getRight(index), getLeft(newIndex), s.sol[newIndex], getRight(newIndex)});
             break;
         case 3:
             s.movement = REINSERTION;
@@ -88,6 +87,12 @@ int CBMProblem::deltaEval(CBMSol& s) {
         }
     };
 
+    auto twoOptLambda = [&](int i, int j) -> int {
+        if(i == -1 || j == -1)
+            return 0;
+        return this->onesToOnes[i][j];
+    };
+
     switch(s.movement) {
         case REINSERTION: {
             int prev = lambda(s.mE[0], s.mE[1], s.mE[4]);
@@ -103,20 +108,12 @@ int CBMProblem::deltaEval(CBMSol& s) {
             s.cost += -(prevLeft + prevRight) + (afterLeft + afterRight);
             break;
         }
-        case ADJACENTSWAP: {
-            int prevLeft = lambda(s.mE[0], s.mE[2], s.mE[1]);
-            int prevRight = lambda(s.mE[3], s.mE[5], s.mE[4]);
-            int afterLeft = lambda(s.mE[6], s.mE[8], s.mE[7]);
-            int afterRight = lambda(s.mE[9], s.mE[11], s.mE[10]);
-            s.cost += (-(prevLeft + prevRight) + (afterLeft + afterRight))/2;
-            break;
-        }
         case TWOOPT: {
-            int prevLeft = lambda(s.mE[0], s.mE[2], s.mE[1]);
-            int prevRight = lambda(s.mE[3], s.mE[5], s.mE[4]);
-            int afterLeft = lambda(s.mE[6], s.mE[8], s.mE[7]);
-            int afterRight = lambda(s.mE[9], s.mE[11], s.mE[10]);
-            s.cost += -(prevLeft + prevRight) + (afterLeft + afterRight);
+            int prevLeft = twoOptLambda(s.mE[1], s.mE[0]);
+            int prevRight = twoOptLambda(s.mE[2], s.mE[3]);
+            int afterLeft = twoOptLambda(s.mE[2], s.mE[0]);
+            int afterRight = twoOptLambda(s.mE[1], s.mE[3]);
+            s.cost += (prevLeft + prevRight) - (afterLeft + afterRight);
             break;
         }
     }
@@ -127,13 +124,15 @@ void CBMProblem::computeMatrixes() {
     for (int i = 0; i < c; i++) {
         for (int j = 0; j < c; j++) {
             if (i == j) continue;
-            int o2z = 0, z2o = 0;
+            int o2z = 0, z2o = 0, o2o = 0;
             for (int row = 0; row < l; row++) {
                 if (binaryMatrix[row][i] && !binaryMatrix[row][j]) o2z++;
                 else if (!binaryMatrix[row][i] && binaryMatrix[row][j]) z2o++;
+                else if (binaryMatrix[row][i] && binaryMatrix[row][j]) o2o++;
             }
             this->onesToZeros[i][j] = o2z;
             this->zerosToOnes[i][j] = z2o;
+            this->onesToOnes[i][j] = o2o;
             this->diffMatrix[i][j]  = o2z + z2o;
         }
     }

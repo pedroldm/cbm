@@ -31,6 +31,7 @@ class CBMProblem : public Problem<CBMSol> {
     vector<vector<int>> diffMatrix;
     vector<vector<int>> onesToZeros;
     vector<vector<int>> zerosToOnes;
+    vector<vector<int>> onesToOnes;
     vector<bitset<COLUMNS>> binaryMatrix;
 
     int movementType;
