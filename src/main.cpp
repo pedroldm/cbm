@@ -21,8 +21,9 @@ int main(int argc, char* argv[]) {
     int tempD = 4;
     int upType = 1;
     int tempUpdate = 3;
-    int movementType = 2;
-    int threads = 4;
+    int movementType = 4;
+    int threads = 1;
+    int maxBlockSize = 3;
     string filePath;
 
     for (int i = 1; i < argc; ++i) {
@@ -43,6 +44,8 @@ int main(int argc, char* argv[]) {
             istringstream(arg.substr(13)) >> tempUpdate;
         } else if (arg.find("--tempMax=") == 0) {
             istringstream(arg.substr(10)) >> tempMax;
+        } else if (arg.find("--maxBlockSize=") == 0) {
+            istringstream(arg.substr(15)) >> maxBlockSize;
         } else if (arg.find("--threads=") == 0) {
             istringstream(arg.substr(10)) >> threads;
         } else if (arg.find("--movementType=") == 0) {
@@ -56,14 +59,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias);
+    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
     CBMSol sol = algo.start(threads, prob);
 
-    jsonOutput(sol, *prob, algo);
+    //jsonOutput(sol, *prob, algo);
+    cout << sol.cost << endl;
 
     delete prob;
-
     return 0;
 }
 

@@ -37,11 +37,12 @@ class CBMProblem : public Problem<CBMSol> {
     int movementType;
     double maxTemp;
     double constructionBias;
+    int maxBlockSize;
 
     random_device rng_device;
     mt19937 mersenne_engine;
 
-    CBMProblem(string filename, int movementType, double constructionBias);
+    CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize);
     CBMSol construction();
     CBMSol neighbor(CBMSol sol);
     int completeEval(CBMSol& s);

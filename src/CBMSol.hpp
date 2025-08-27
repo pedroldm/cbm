@@ -9,7 +9,8 @@ enum Movement {
     REINSERTION,
     TWOOPT,
     SWAP,
-    ADJACENTSWAP
+    ADJACENTSWAP,
+    BLOCK_INSERTION
 };
 
 

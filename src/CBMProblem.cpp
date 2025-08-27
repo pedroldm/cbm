@@ -1,6 +1,6 @@
 #include "CBMProblem.hpp"
 
-CBMProblem::CBMProblem(string filename, int movementType, double constructionBias): mersenne_engine(rng_device()), constructionBias(constructionBias) {
+CBMProblem::CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize): mersenne_engine(rng_device()), constructionBias(constructionBias), maxBlockSize(maxBlockSize) {
     ifstream input(filename);
     if (!input.is_open()) {
         throw runtime_error("Error opening file: " + filename);
@@ -59,7 +59,7 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
             s.mE = {getLeft(index), s.sol[index], s.sol[newIndex], getRight(newIndex)};
             reverse(s.sol.begin() + index, s.sol.begin() + newIndex + 1);
             break;
-        case 3:
+        case 3: {
             s.movement = REINSERTION;
             int element = s.sol[index];
             int oL = getLeft(index);
@@ -69,6 +69,30 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
             int nL = getLeft(newIndex);
             int nR = getRight(newIndex);
             s.mE = {oL, oR, nL, nR, element};
+            break;
+        }
+        case 4: {
+            s.movement = BLOCK_INSERTION;
+            uniform_int_distribution<> blockSizeDist(2, this->maxBlockSize);
+            int blockSize = blockSizeDist(this->mersenne_engine);
+
+            if (index + blockSize > this->c) {
+                index = this->c - blockSize;
+            }
+            vector<int> block(s.sol.begin() + index, s.sol.begin() + index + blockSize);
+
+            int oL = getLeft(index);
+            int oR = (index + blockSize < this->c) ? s.sol[index + blockSize] : -1;
+
+            s.sol.erase(s.sol.begin() + index, s.sol.begin() + index + blockSize);
+            newIndex = dist(this->mersenne_engine) % (this->c - blockSize + 1);
+            s.sol.insert(s.sol.begin() + newIndex, block.begin(), block.end());
+            int nL = getLeft(newIndex);
+            int nR = getRight(newIndex + blockSize - 1);
+            s.mE = {oL, oR, nL, nR};
+            s.mE.insert(s.mE.end(), {block.front(), block.back()});
+        }
+        break;
     }
 
     return s;
@@ -87,10 +111,14 @@ int CBMProblem::deltaEval(CBMSol& s) {
         }
     };
 
-    auto twoOptLambda = [&](int i, int j) -> int {
+    auto andLambda = [&](int i, int j) -> int {
         if(i == -1 || j == -1)
             return 0;
         return this->onesToOnes[i][j];
+    };
+
+    auto blockLambda = [&](int i, int j) -> int {
+        return (i != -1 && j != -1) ? this->diffMatrix[i][j] : 0;
     };
 
     switch(s.movement) {
@@ -109,11 +137,21 @@ int CBMProblem::deltaEval(CBMSol& s) {
             break;
         }
         case TWOOPT: {
-            int prevLeft = twoOptLambda(s.mE[1], s.mE[0]);
-            int prevRight = twoOptLambda(s.mE[2], s.mE[3]);
-            int afterLeft = twoOptLambda(s.mE[2], s.mE[0]);
-            int afterRight = twoOptLambda(s.mE[1], s.mE[3]);
+            int prevLeft = andLambda(s.mE[1], s.mE[0]);
+            int prevRight = andLambda(s.mE[2], s.mE[3]);
+            int afterLeft = andLambda(s.mE[2], s.mE[0]);
+            int afterRight = andLambda(s.mE[1], s.mE[3]);
             s.cost += (prevLeft + prevRight) - (afterLeft + afterRight);
+            break;
+        }
+        case BLOCK_INSERTION: {
+            int prevInsPoint = blockLambda(s.mE[2], s.mE[3]);
+            int prevBlockLeft = blockLambda(s.mE[4], s.mE[0]);
+            int prevBlockRight = blockLambda(s.mE[5], s.mE[1]);
+            int afterBlockRemove = blockLambda(s.mE[0], s.mE[1]);
+            int afterBlockLeft = blockLambda(s.mE[2], s.mE[4]);
+            int afterBlockRight = blockLambda(s.mE[3], s.mE[5]);
+            s.cost += (-(prevInsPoint + prevBlockLeft + prevBlockRight) + (afterBlockRemove + afterBlockLeft + afterBlockRight))/2;
             break;
         }
     }

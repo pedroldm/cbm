@@ -19,7 +19,7 @@ OBJS_DEBUG = $(SRCS:.cpp=.o.debug)
 OBJS_PRD = $(SRCS:.cpp=.o.prd)
 
 # Header files
-HEADERS = src/CBMSol.hpp src/CBMProblem.hpp
+HEADERS = src/IO/json.hpp src/CBMSol.hpp src/CBMProblem.hpp
 
 # Target executable
 TARGET = main
