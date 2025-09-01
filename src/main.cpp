@@ -1,6 +1,8 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <chrono>
+#include <iomanip>
 
 #include "CBMProblem.hpp"
 #include "PTAPI/include/PT.h"
@@ -24,6 +26,7 @@ int main(int argc, char* argv[]) {
     int movementType = 4;
     int threads = 1;
     int maxBlockSize = 3;
+    bool irace = false;
     string filePath;
 
     for (int i = 1; i < argc; ++i) {
@@ -52,6 +55,14 @@ int main(int argc, char* argv[]) {
             istringstream(arg.substr(15)) >> movementType;
         } else if (arg.find("--constructionBias=") == 0) {
             istringstream(arg.substr(19)) >> constructionBias;
+        } else if (arg.find("--irace=") == 0) {
+            string value = arg.substr(8);
+            if (value == "true" || value == "1")
+                irace = true;
+            else if (value == "false" || value == "0")
+                irace = false;
+            else
+                throw invalid_argument("Invalid value for --irace (expected true/false)");
         } else if (arg.find("--filePath=") == 0) {
             istringstream(arg.substr(11)) >> filePath;
         } else {
@@ -61,10 +72,16 @@ int main(int argc, char* argv[]) {
 
     CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+    auto start = chrono::high_resolution_clock::now();
     CBMSol sol = algo.start(threads, prob);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
 
-    //jsonOutput(sol, *prob, algo);
-    cout << sol.cost << endl;
+    if(irace) {
+        cout << sol.cost + (elapsed.count() / 10000.0) << endl;
+    }
+    else
+        jsonOutput(sol, *prob, algo);
 
     delete prob;
     return 0;
