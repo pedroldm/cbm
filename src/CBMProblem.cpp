@@ -1,10 +1,22 @@
 #include "CBMProblem.hpp"
 
-CBMProblem::CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize): mersenne_engine(rng_device()), constructionBias(constructionBias), maxBlockSize(maxBlockSize) {
+CBMProblem::CBMProblem(string filename,
+                       int movementType,
+                       double constructionBias,
+                       int maxBlockSize,
+                       string tspPath)
+    : mersenne_engine(rng_device()),
+      constructionBias(constructionBias),
+      maxBlockSize(maxBlockSize),
+      tspPath(tspPath) {    
     ifstream input(filename);
     if (!input.is_open()) {
         throw runtime_error("Error opening file: " + filename);
     }
+    auto pos = filename.find_last_of("/\\");
+    this->instanceName = (pos == string::npos) 
+        ? filename 
+        : filename.substr(pos + 1);
 
     input >> this->l;
     input >> this->c;
@@ -261,4 +273,72 @@ void CBMProblem::printS(CBMSol& s) {
         }
         cout << endl;
     }
+}
+
+void CBMProblem::toTSP() {
+    fs::path tspFilePath = fs::path(this->tspPath) / (this->instanceName + ".tsp");
+    fs::path parFilePath = fs::path(this->tspPath) / (this->instanceName + ".par");
+    if (!fs::exists(tspFilePath.parent_path())) {
+        fs::create_directories(tspFilePath.parent_path());
+    }
+
+    ofstream tsp(tspFilePath);
+    ofstream par(parFilePath);
+    if (!tsp || !par) {
+        throw runtime_error("Error creating TSP/PAR files");
+    }
+    tsp << "NAME : " << this->instanceName << endl;
+    tsp << "TYPE : TSP" << endl;
+    tsp << "DIMENSION : " << this->c << endl;
+    tsp << "EDGE_WEIGHT_TYPE : EXPLICIT" << endl;
+    tsp << "EDGE_WEIGHT_FORMAT : FULL_MATRIX" << endl;
+    tsp << "EDGE_WEIGHT_SECTION" << endl;
+
+    for (int i = 0; i < this->c; ++i) {
+        for (int j = 0; j < this->c; ++j) {
+            tsp << diffMatrix[i][j] << (j == this->c - 1 ? "\n" : " ");
+        }
+    }
+
+    tsp << "EOF\n";
+
+    par << "PROBLEM_FILE = " << tspFilePath.string() << "\n";
+    par << "OUTPUT_TOUR_FILE = " 
+        << (fs::path(this->tspPath) / (this->instanceName + ".sol")).string() 
+        << "\n";
+    par << "RUNS = 1\n";
+}
+
+CBMSol CBMProblem::fromTSP() {
+    fs::path solPath = fs::path(this->tspPath) / (this->instanceName + ".sol");
+    ifstream sol(solPath);
+    if (!sol) {
+        throw runtime_error("Error opening solution file: " + solPath.string());
+    }
+
+    vector<int> tour;
+    string line;
+    bool inTourSection = false;
+
+    while (getline(sol, line)) {
+        if (!inTourSection) {
+            if (line == "TOUR_SECTION") {
+                inTourSection = true;
+            }
+        } else {
+            istringstream iss(line);
+            int node;
+            while (iss >> node) {
+                if (node == -1) {
+                    inTourSection = false;
+                    break;
+                }
+                tour.push_back(node - 1);
+            }
+        }
+    }
+
+    CBMSol s;
+    s.sol = tour;
+    return s;
 }

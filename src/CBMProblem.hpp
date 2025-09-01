@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <filesystem>
 #include <utility>
 
 #include "CBMSol.hpp"
@@ -24,6 +25,7 @@
 #define COLUMNS 1000
 
 using namespace std;
+namespace fs = std::filesystem;
 
 class CBMProblem : public Problem<CBMSol> {
    public:
@@ -33,6 +35,8 @@ class CBMProblem : public Problem<CBMSol> {
     vector<vector<int>> zerosToOnes;
     vector<vector<int>> onesToOnes;
     vector<bitset<COLUMNS>> binaryMatrix;
+    string tspPath;
+    string instanceName;
 
     int movementType;
     double maxTemp;
@@ -42,7 +46,7 @@ class CBMProblem : public Problem<CBMSol> {
     random_device rng_device;
     mt19937 mersenne_engine;
 
-    CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize);
+    CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize, string tspPath = "");
     CBMSol construction();
     CBMSol neighbor(CBMSol sol);
     int completeEval(CBMSol& s);
@@ -51,6 +55,8 @@ class CBMProblem : public Problem<CBMSol> {
     int deltaEval(CBMSol& s);
     int evaluate(CBMSol& s);
     void printS(CBMSol& s);
+    void toTSP();
+    CBMSol fromTSP();
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {

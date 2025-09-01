@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
     int maxBlockSize = 3;
     bool irace = false;
     string filePath;
+    string tspPath = "./instances/tsp/";
 
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
@@ -70,20 +71,25 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize);
-    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-    auto start = chrono::high_resolution_clock::now();
-    CBMSol sol = algo.start(threads, prob);
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> elapsed = end - start;
-
-    if(irace) {
-        cout << sol.cost + (elapsed.count() / 10000.0) << endl;
-    }
-    else
-        jsonOutput(sol, *prob, algo);
-
-    delete prob;
+    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize, tspPath);
+    prob->toTSP();
+    CBMSol s = prob->fromTSP();
+    prob->evaluate(s);
+    cout << "Cost : " << s.cost << endl;
+    prob->printS(s);
+    //PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+    //auto start = chrono::high_resolution_clock::now();
+    //CBMSol sol = algo.start(threads, prob);
+    //auto end = chrono::high_resolution_clock::now();
+    //chrono::duration<double> elapsed = end - start;
+//
+    //if(irace) {
+    //    cout << sol.cost + (elapsed.count() / 10000.0) << endl;
+    //}
+    //else
+    //    jsonOutput(sol, *prob, algo);
+//
+    //delete prob;
     return 0;
 }
 
