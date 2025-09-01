@@ -4,11 +4,12 @@ CBMProblem::CBMProblem(string filename,
                        int movementType,
                        double constructionBias,
                        int maxBlockSize,
-                       string tspPath)
+                       int threads)
     : mersenne_engine(rng_device()),
       constructionBias(constructionBias),
       maxBlockSize(maxBlockSize),
-      tspPath(tspPath) {    
+      threads(threads),
+      ISCount(threads){    
     ifstream input(filename);
     if (!input.is_open()) {
         throw runtime_error("Error opening file: " + filename);
@@ -17,6 +18,8 @@ CBMProblem::CBMProblem(string filename,
     this->instanceName = (pos == string::npos) 
         ? filename 
         : filename.substr(pos + 1);
+    this->currPath = filesystem::current_path();
+    this->lkhPath = this->currPath / "src" / "LKH3" / "LKH";
 
     input >> this->l;
     input >> this->c;
@@ -212,6 +215,34 @@ int CBMProblem::completeEval(CBMSol& s) {
 }
 
 CBMSol CBMProblem::construction() {
+    CBMSol s;
+    s.cost = 0;
+    if(this->ISCount) {
+        this->ISCount--;
+        s.sol = this->lkhConstruction();
+        this->evaluate(s);
+        s.construction = LKH;
+    } else {
+        s = this->greedyConstruction();
+        this->evaluate(s);
+        s.construction = GREEDY;
+    }
+    {
+        lock_guard<mutex> lock(this->ISMutex);
+        this->initialSolutions.push_back(s);
+    }
+    return s;
+}
+
+vector<int> CBMProblem::lkhConstruction() {
+    string tid = to_string(syscall(SYS_gettid));
+    this->toTSP(tid);
+    this->initialTour(tid);
+    this->runLKH(tid);
+    return this->fromTSP(tid);
+}
+
+CBMSol CBMProblem::greedyConstruction() {
     uniform_int_distribution<> dist(0, this->c - 1);
     unordered_set<int> out;
     CBMSol ss;
@@ -275,42 +306,67 @@ void CBMProblem::printS(CBMSol& s) {
     }
 }
 
-void CBMProblem::toTSP() {
-    fs::path tspFilePath = fs::path(this->tspPath) / (this->instanceName + ".tsp");
-    fs::path parFilePath = fs::path(this->tspPath) / (this->instanceName + ".par");
-    if (!fs::exists(tspFilePath.parent_path())) {
-        fs::create_directories(tspFilePath.parent_path());
-    }
-
-    ofstream tsp(tspFilePath);
-    ofstream par(parFilePath);
+void CBMProblem::toTSP(string sufix) {
+    filesystem::path tspPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".tsp");
+    filesystem::path parPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".par");
+    ofstream tsp(tspPath);
+    ofstream par(parPath);
     if (!tsp || !par) {
         throw runtime_error("Error creating TSP/PAR files");
     }
-    tsp << "NAME : " << this->instanceName << endl;
-    tsp << "TYPE : TSP" << endl;
-    tsp << "DIMENSION : " << this->c << endl;
-    tsp << "EDGE_WEIGHT_TYPE : EXPLICIT" << endl;
-    tsp << "EDGE_WEIGHT_FORMAT : FULL_MATRIX" << endl;
-    tsp << "EDGE_WEIGHT_SECTION" << endl;
+
+    tsp << "NAME : " << this->instanceName << "\n";
+    tsp << "TYPE : TSP\n";
+    tsp << "DIMENSION : " << this->c << "\n";
+    tsp << "EDGE_WEIGHT_TYPE : EXPLICIT\n";
+    tsp << "EDGE_WEIGHT_FORMAT : FULL_MATRIX\n";
+    tsp << "EDGE_WEIGHT_SECTION\n";
 
     for (int i = 0; i < this->c; ++i) {
         for (int j = 0; j < this->c; ++j) {
             tsp << diffMatrix[i][j] << (j == this->c - 1 ? "\n" : " ");
         }
     }
-
     tsp << "EOF\n";
 
-    par << "PROBLEM_FILE = " << tspFilePath.string() << "\n";
-    par << "OUTPUT_TOUR_FILE = " 
-        << (fs::path(this->tspPath) / (this->instanceName + ".sol")).string() 
-        << "\n";
+    par << "PROBLEM_FILE = " << tspPath.string() << "\n";
+    par << "OUTPUT_TOUR_FILE = " << (this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".sol")).string() << "\n";
     par << "RUNS = 1\n";
+    par << "INITIAL_TOUR_FILE = " << (this->currPath / "instances" / "tsp" / (this->instanceName + sufix + "_initial_.tour")).string() << endl;
 }
 
-CBMSol CBMProblem::fromTSP() {
-    fs::path solPath = fs::path(this->tspPath) / (this->instanceName + ".sol");
+void CBMProblem::runLKH(string sufix) {
+    filesystem::path parPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".par");
+    if (!fs::exists(this->lkhPath)) {
+        throw runtime_error("LKH executable not found: " + lkhPath.string());
+    }
+    if (!fs::exists(parPath)) {
+        throw runtime_error("PAR file not found: " + parPath.string());
+    }
+
+    string command = lkhPath.string() + " " + parPath.string() + " > /dev/null 2>&1";
+
+    int ret = system(command.c_str());
+    if (ret != 0) {
+        cerr << "LKH returned error code: " << ret << endl;
+    }
+}
+
+void CBMProblem::initialTour(string sufix) {
+    filesystem::path inputTourPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + "_initial_.tour");
+    ofstream tour(inputTourPath);
+    if (!tour) {
+        throw runtime_error("Error creating TOUR file");
+    }
+    tour << "TOUR_SECTION" << endl;
+    CBMSol s = this->greedyConstruction();
+    for(int i = 0 ; i < this->c ; i++)
+        tour << s.sol[i] + 1 << endl;
+    tour << "-1" << endl << "EOF";
+}
+
+vector<int> CBMProblem::fromTSP(string sufix) {
+    filesystem::path solPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".sol");
     ifstream sol(solPath);
     if (!sol) {
         throw runtime_error("Error opening solution file: " + solPath.string());
@@ -333,12 +389,9 @@ CBMSol CBMProblem::fromTSP() {
                     inTourSection = false;
                     break;
                 }
-                tour.push_back(node - 1);
+                tour.push_back(node - 1); // 0-based indexing
             }
         }
     }
-
-    CBMSol s;
-    s.sol = tour;
-    return s;
+    return tour;
 }

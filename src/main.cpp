@@ -71,33 +71,29 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize, tspPath);
-    prob->toTSP();
-    CBMSol s = prob->fromTSP();
-    prob->evaluate(s);
-    cout << "Cost : " << s.cost << endl;
-    prob->printS(s);
-    //PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
-    //auto start = chrono::high_resolution_clock::now();
-    //CBMSol sol = algo.start(threads, prob);
-    //auto end = chrono::high_resolution_clock::now();
-    //chrono::duration<double> elapsed = end - start;
-//
-    //if(irace) {
-    //    cout << sol.cost + (elapsed.count() / 10000.0) << endl;
-    //}
-    //else
-    //    jsonOutput(sol, *prob, algo);
-//
-    //delete prob;
+    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize, threads);
+    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+    auto start = chrono::high_resolution_clock::now();
+    CBMSol sol = algo.start(threads, prob);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+
+    if(irace) {
+        cout << sol.cost + (elapsed.count() / 10000.0) << endl;
+    }
+    else
+        jsonOutput(sol, *prob, algo);
+
+    delete prob;
     return 0;
 }
 
 void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo) {
     json j;
 
-    j["cost"] = s.cost;
-    j["solution"] = s.sol;
+    // Final solution
+    j["final_solution"]["cost"] = s.cost;
+    j["final_solution"]["solution"] = s.sol;
 
     vector<vector<int>> matrix;
     for (int row = 0; row < prob.l; row++) {
@@ -107,7 +103,18 @@ void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo) {
         }
         matrix.push_back(rowVec);
     }
-    j["matrix"] = matrix;
+    j["final_solution"]["matrix"] = matrix;
+
+    // Initial solutions
+    json initSols = json::array();
+    for (const auto& sol : prob.initialSolutions) {
+        json js;
+        js["cost"] = sol.cost;
+        js["solution"] = sol.sol;
+        js["construction"] = (sol.construction == GREEDY ? "GREEDY" : "LKH");
+        initSols.push_back(js);
+    }
+    j["initial_solutions"] = initSols;
 
     cout << j.dump(4) << endl;
 }

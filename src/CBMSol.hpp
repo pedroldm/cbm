@@ -13,11 +13,16 @@ enum Movement {
     BLOCK_INSERTION
 };
 
+enum Construction {
+    GREEDY,
+    LKH
+};
 
 struct CBMSol : public solution {
     vector<int> sol;
     vector<int> mE;
     Movement movement;
+    Construction construction;
     int cost;
 };
 
