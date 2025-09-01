@@ -1,0 +1,4 @@
+PROBLEM_FILE = /home/pedrowsl/cbm/instances/tsp/b32.tsp
+OUTPUT_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/b32.sol
+RUNS = 1
+INITIAL_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/b32_initial_.tour

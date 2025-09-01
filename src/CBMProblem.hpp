@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <utility>
 #include <mutex>
+#include <omp.h>
 #include <atomic>
 
 #include "CBMSol.hpp"
@@ -35,6 +36,7 @@ class CBMProblem : public Problem<CBMSol> {
    public:
     int l, c;
     vector<CBMSol> initialSolutions;
+    vector<vector<int>> lkhInitialSolutions;
     vector<vector<int>> diffMatrix;
     vector<vector<int>> onesToZeros;
     vector<vector<int>> zerosToOnes;
@@ -57,11 +59,12 @@ class CBMProblem : public Problem<CBMSol> {
     double constructionBias;
     int maxBlockSize;
     int threads;
+    int lkhS;
 
     random_device rng_device;
     mt19937 mersenne_engine;
 
-    CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize, int threads);
+    CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize, int threads, int lkhS);
     CBMSol construction();
     CBMSol greedyConstruction();
     vector<int> lkhConstruction();
@@ -76,6 +79,7 @@ class CBMProblem : public Problem<CBMSol> {
     vector<int> fromTSP(string sufix = "");
     void initialTour(string sufix = "");
     void runLKH(string sufix = "");
+    void createLKHInitialS();
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {

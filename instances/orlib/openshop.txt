@@ -1,0 +1,139 @@
+ Procedures and data to create the open shop problems proposed in
+ the paper "Benchmarks for basic scheduling problems"
+ written by E. Taillard and to appear in EJOR.
+ last update : 22/5/1992
+  
+     ************* procedures **************
+ function unif(var seed : integer; low, high : integer): integer;
+ (* generate a random number uniformly between low and high *)
+ const
+   m = 2147483647;
+   a = 16807;
+   b = 127773;
+   c = 2836;
+ var
+   k : integer;
+   value_0_1 : double;  (* floating point coded on 64 bits *)
+ begin
+   k := seed div b ;
+   seed := a * (seed mod b) - k * c;
+   if seed < 0 then seed := seed + m ;
+   value_0_1 := seed / m ;
+   unif := low + trunc(value_0_1 * (high - low + 1))
+ end;
+  
+ procedure generate_open_shop(var time_seed, machine_seed : integer;
+                              nb_jobs, nb_machines : integer;
+                              var d, M : matrix);
+ (* type matrix = array[1..20, 1..20] of integer; must be declared above *)
+ (* generate processing times d[i,j] and machines M[i, j] *)
+ (* of the ith operation of job j *)
+  
+ var i, j : integer;
+  
+   procedure swap(var a, b : integer);
+   var temp : integer;
+   begin
+     temp := a; a := b; b := temp
+   end;
+  
+ begin
+   for j := 1 to nb_jobs do
+     for i := 1 to nb_machines do
+       d[i, j] := unif(time_seed, 1, 99);
+  
+   for j := 1 to nb_jobs do
+     for i := 1 to nb_machines do
+       M[i, j] := i;
+   for j := 1 to nb_jobs do
+     for i := 1 to nb_machines do
+       swap(M[i, j], M[unif(machine_seed, i, nb_machines), j])
+ end;
+  
+  
+  
+      ********** data **********
+ Time seed, Machine seed, upper bound (* = optimum), lower bound
+  
+ 4 jobs  4 machines
+ 1166510396  164000672   193*  186
+ 1624514147  1076870026  236*  229
+ 1116611914  1729673136  271*  262
+ 410579806   1453014524  250*  245
+ 1036100146  375655500   295*  287
+ 597897640   322140729   189*  185
+ 1268670769  556009645   201*  197
+ 307928077   421384574   217*  212
+ 667545295   485515899   261*  258
+ 35780816    492238933   217*  213
+  
+ 5 jobs  5 machines
+ 527556884   1343124817  300*  295
+ 1046824493  1973406531  262*  255
+ 1165033492  86711717    323*  321
+ 476292817   24463110    310*  306
+ 1181363416  606981348   326*  321
+ 897739730   513119113   312*  307
+ 577107303   2046387124  303*  298
+ 1714191910  1928475945  300*  292
+ 1813128617  2091141708  353*  349
+ 808919936   183753764   326*  321
+  
+ 7 jobs  7 machines
+ 1840686215  1827454623  438  435
+ 1026771938  1312166461  449  443
+ 609471574   670843185   479  468
+ 1022295947  398226875   467  463
+ 1513073047  1250759651  419  416
+ 1612211197  95606345    460  451
+ 435024109   1118234860  435  422
+ 1760865440  1099909092  426  424
+ 122574075   10979313    460  458
+ 248031774   1685251301  400  398
+  
+ 10 jobs  10 machines
+ 1344106948  1868311537  645   637
+ 425990073   1111853152  588*  588
+ 666128954   1750328066  611   598
+ 442723456   1369177184  577*  577
+ 2033800800  1344077538  641   640
+ 964467313   1735817385  538*  538
+ 1004528509  967002400   623   616
+ 1667495107  818777384   596   595
+ 1806968543  1561913259  595*  595
+ 938376228   344628625   602   596
+  
+ 15 jobs  15 machines
+ 1561423441  1787167667  937*  937
+ 204120997   213027331   918*  918
+ 801158374   1812110433  871*  871
+ 1502847623  1527847153  934*  934
+ 282791231   1855451778  950   946
+ 1130361878  849417380   933*  933
+ 379464508   944419714   891*  891
+ 1760142791  1955448160  893*  893
+ 1993140927  179408412   908   899
+ 1678386613  1567160817  902*  902
+  
+ 20 jobs  20 machines
+ 957638      9237185     1155*  1155
+ 162587311   1489531109  1244   1241
+ 965299017   1054695706  1257*  1257
+ 1158457671  1499999517  1248*  1248
+ 1191143707  1530757746  1256*  1256
+ 1826671743  901609771   1209   1204
+ 1591533998  1146547719  1294*  1294
+ 937297777   92726463    1173   1169
+ 687896268   1731298717  1289*  1289
+ 687034842   684013066   1241*  1241
+  
+      ********** verification **********
+      generate_open_shop(time_seed, machine_seed, 4, 4, d, M) should
+      provide, with time_seed = 1166510396 and machine_seed = 164000672
+      initially :
+  
+             (d[i,j])=                 (M[i,j])=
+             54 9  38 95               3 4 1 1
+             34 15 19 34               1 1 2 3
+             61 89 28 7                4 2 3 2
+             2  70 87 29               2 3 4 4

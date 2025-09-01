@@ -1,0 +1,4 @@
+PROBLEM_FILE = /home/pedrowsl/cbm/instances/tsp/g54.tsp
+OUTPUT_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/g54.sol
+RUNS = 1
+INITIAL_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/g54_initial_.tour

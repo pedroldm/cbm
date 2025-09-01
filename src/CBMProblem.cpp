@@ -4,17 +4,19 @@ CBMProblem::CBMProblem(string filename,
                        int movementType,
                        double constructionBias,
                        int maxBlockSize,
-                       int threads)
+                       int threads,
+                       int lkhS)
     : mersenne_engine(rng_device()),
       constructionBias(constructionBias),
       maxBlockSize(maxBlockSize),
       threads(threads),
-      ISCount(threads){    
+      ISCount(lkhS){    
     ifstream input(filename);
     if (!input.is_open()) {
         throw runtime_error("Error opening file: " + filename);
     }
     auto pos = filename.find_last_of("/\\");
+    this->lkhS = lkhS;
     this->instanceName = (pos == string::npos) 
         ? filename 
         : filename.substr(pos + 1);
@@ -214,32 +216,45 @@ int CBMProblem::completeEval(CBMSol& s) {
     return s.cost;
 }
 
+void CBMProblem::createLKHInitialS() {
+    #pragma omp parallel for
+    for (int i = 0; i < this->lkhS; i++) {
+        string tid = to_string(omp_get_thread_num());
+        this->toTSP(tid);
+        this->initialTour(tid);
+        this->runLKH(tid);
+        vector<int> s = this->fromTSP(tid);
+        {
+            lock_guard<mutex> lock(this->ISMutex);
+            this->lkhInitialSolutions.push_back(s);
+        }
+    }
+}
+
 CBMSol CBMProblem::construction() {
     CBMSol s;
     s.cost = 0;
     if(this->ISCount) {
         this->ISCount--;
-        s.sol = this->lkhConstruction();
+        {
+            lock_guard<mutex> lock(this->ISMutex);
+            s.sol = this->lkhInitialSolutions.back();
+            this->evaluate(s);
+            this->lkhInitialSolutions.pop_back();
+            this->initialSolutions.push_back(s);
+        }
         this->evaluate(s);
         s.construction = LKH;
     } else {
         s = this->greedyConstruction();
         this->evaluate(s);
         s.construction = GREEDY;
-    }
-    {
-        lock_guard<mutex> lock(this->ISMutex);
-        this->initialSolutions.push_back(s);
+        {
+            lock_guard<mutex> lock(this->ISMutex);
+            this->initialSolutions.push_back(s);
+        }
     }
     return s;
-}
-
-vector<int> CBMProblem::lkhConstruction() {
-    string tid = to_string(syscall(SYS_gettid));
-    this->toTSP(tid);
-    this->initialTour(tid);
-    this->runLKH(tid);
-    return this->fromTSP(tid);
 }
 
 CBMSol CBMProblem::greedyConstruction() {

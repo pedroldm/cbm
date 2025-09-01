@@ -11,13 +11,16 @@
 using json = nlohmann::json;
 
 void validateDeltaF(CBMProblem* prob);
-void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo);
+void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
+                chrono::duration<double> execution,
+                chrono::duration<double> lkh);
 
 int main(int argc, char* argv[]) {
     float tempMin = 0.05f;
     float tempMax = 2.0f;
     double constructionBias = 2.5;
     int tempL = 4;
+    int lkhS = 5;
     float MKL = 400;
     int PTL = 2000;
     int tempD = 4;
@@ -48,6 +51,8 @@ int main(int argc, char* argv[]) {
             istringstream(arg.substr(13)) >> tempUpdate;
         } else if (arg.find("--tempMax=") == 0) {
             istringstream(arg.substr(10)) >> tempMax;
+        } else if (arg.find("--lkhS=") == 0) {
+            istringstream(arg.substr(7)) >> lkhS;
         } else if (arg.find("--maxBlockSize=") == 0) {
             istringstream(arg.substr(15)) >> maxBlockSize;
         } else if (arg.find("--threads=") == 0) {
@@ -71,24 +76,30 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize, threads);
+    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize, threads, lkhS);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
     auto start = chrono::high_resolution_clock::now();
+    prob->createLKHInitialS();
+    auto lkhFinish = chrono::high_resolution_clock::now();
     CBMSol sol = algo.start(threads, prob);
     auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> elapsed = end - start;
+    chrono::duration<double> execution = end - start;
+    chrono::duration<double> lkh = lkhFinish - start;
 
     if(irace) {
-        cout << sol.cost + (elapsed.count() / 10000.0) << endl;
+        cout << sol.cost + (execution.count() / 10000.0) << endl;
+        prob->printS(sol);
     }
     else
-        jsonOutput(sol, *prob, algo);
+        jsonOutput(sol, *prob, algo, execution, lkh);
 
     delete prob;
     return 0;
 }
 
-void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo) {
+void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
+                chrono::duration<double> execution,
+                chrono::duration<double> lkh) {
     json j;
 
     // Final solution
@@ -115,6 +126,10 @@ void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo) {
         initSols.push_back(js);
     }
     j["initial_solutions"] = initSols;
+
+    // Times
+    j["execution_time_seconds"] = execution.count();
+    j["lkh_time_seconds"] = lkh.count();
 
     cout << j.dump(4) << endl;
 }

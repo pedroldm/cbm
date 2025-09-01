@@ -1,0 +1,377 @@
+Someone looking for the Hoffman/Padberg SPP test set contacted me and I
+gave him a pointer to OR Library. He then asked if I had MPS-formated
+versions of these problems. I sent him the Perl script below which I wrote
+to generate MPS formated files from their current "airline format". 
+
+David Levine            Boeing Information & Support Services 
+PO Box 3707             425-865-6115 (Voice)                      -|-       
+MS 7L-20                425-865-2966 (FAX)                    ---o-O-o---   
+Seattle, WA 98124-2207  david.levine@boeing.com                   " "       
+
+
+
+
+#!/usr/local/bin/perl
+#
+#    This program reads converts MPS-formatted files to "airline format"
+#    and vice versa  It is written in perl which should exist on most Unix
+#    systems. However, you may need to change the first line to reflect 
+#    the correct path to perl on your system.
+#
+#    To run use either:
+#           af2mps -mps mps_file
+#           af2mps -af air_file [-ip]
+#
+#    where:
+#
+#    af2mps is the name of this perl script
+#    "-mps mps_formated_file" means convert the MPS-formatted file, "mps_file"
+#    to airline format which is written to standard output.
+#    "-af air_file" means convert the airline-formatted file, "air_file" 
+#    to mps format which is written to standard output.  The optional
+#    parameter [-ip] specifies whether to write an integer program, i.e., 
+#    'MARKER' cards are included in the COLUMNS section to delimit integer 
+#    variables.  Otherwise the default is just to write a linear program.
+#
+#    Example:  Input in MPS format:
+#
+# NAME          AIR01
+# ROWS
+#  N  COST    
+#  E  RW000001
+#  E  RW000002
+#  E  RW000003
+# COLUMNS
+#     MARK0000  'MARKER'                 'INTORG'
+#     CL000001  COST              3926   RW000001             1
+#     CL000001  RW000002             1   RW000003             1
+#     CL000002  COST              1776   RW000001             1
+#     CL000003  COST              2220
+#     CL000003  RW000002             1   RW000003             1
+#     CL000004  COST              2156   RW000001             1
+#     CL000004  RW000003             1
+#     CL000005  COST               968   RW000003             1
+#     MARK0001  'MARKER'                 'INTEND'
+# RHS
+#     RHS       RW000001             1   RW000002             1
+#     RHS       RW000003             1   RW000004             1
+#     RHS       RW000005             1
+# BOUNDS
+#  UP bnd       CL000001             1
+#  UP bnd       CL000002             1
+#  UP bnd       CL000003             1
+#  UP bnd       CL000004             1
+#  UP bnd       CL000005             1
+# ENDATA
+#
+#    Example:  Output in airline format:
+#
+# 3  5
+# 3926 3 1 2 3
+# 1776 1 1
+# 2220 2 2 3
+# 2156 2 1 3
+# 968 1 3
+#
+#    BUGS:  The code is not to general, although it does handle 3 or 5 fields
+#           in the COLUMNS section.  It ignores MARKER cards, anything but N
+#           and E rows, and the RHS and BOUNDS section (i.e., it assumes a pure
+#           SPP problem with the rhs implicitly one).
+#
+#    David Levine 2/20/93 levine@mcs.anl.gov
+#    Argonne National Laboratory and Illinois Institute of Technology
+#    Copyright under the GNU copyleft software licensing agreement
+#
+###############################################################################
+
+# $debug = 1;
+
+if ( ($#ARGV != 1) && ($#ARGV != 2) )   # should have two or three arguments
+{
+    &usage;
+}
+
+if    (@ARGV[0] eq "-mps")
+{
+    &mps_to_af(@ARGV[1]);  # pass mps formatted file name
+}
+elsif (@ARGV[0] eq "-af")
+{
+    $ip = 0;               # default if not defined
+    if ( ($#ARGV == 2)  && (@ARGV[2] eq "-ip") ) 
+    {
+          $ip = 1;
+    }
+    &af_to_mps( @ARGV[1], $ip );  # pass airline formatted file name
+}
+else
+{
+    print "@ARGV[0]: invalid parameter\n";
+    &usage;
+}
+
+exit(0);                   # all done
+
+
+###############################################################################
+#           convert mps formatted input file to airline format
+###############################################################################
+sub mps_to_af
+{
+    local($file) = @_;     # @_ is the list of paramaters passed in
+
+    if (!open(FILE, "<$file")) {
+       die "Cannot open file $file: $!\n";
+    }
+
+    $erow = 0;                # number of equality rows
+    %rows = ();               # mapping of row name to number
+    @list_of_N_rows = ();     # list of free rows
+    @list_of_E_rows = ();     # list of equality rows
+
+    while ($_ = <FILE>)       # process ROWS section
+    {
+        chop;
+        last if (/^COLUMNS\s*/);  # quit this section when hit "COLUMNS"
+
+        if (/^\s*E\s*(\S+)\s*$/)  # match an equality row
+        {
+            $erow++;
+            $rows{$1} = $erow;
+            push(@list_of_E_rows,$1);    # add the row to the list
+            next;
+        }
+
+        if (/^\s*N\s*(\S+)\s*$/)  # match a free row
+        {
+            $crow++;
+            push(@list_of_N_rows,$1);    # add the row to the list
+            next;
+        }
+    }
+
+    if ( $debug )               # how to make this a command line arg?
+    {
+        print "rows = ",%rows,"\n";
+        print "list_of_E_rows = @list_of_E_rows\n";
+        print "list_of_N_rows = @list_of_N_rows\n\n";
+    }
+
+    while ($_ = <FILE>)         # process COLUMNS section
+    {
+        chop;
+        last if (/.*RHS.*$/);   # quit this section when hit "RHS"
+        next if (/.*MARKER.*/); # skip "MARKER" cards
+ 
+    # have a valid card in the COLUMNS section with either 3 or 5 fields
+
+       ($1, $2, $3, $4, $5) = split(' ',$_);
+
+    # first test on name of row in second column
+
+       if    ( grep($_ eq $2, @list_of_N_rows) )  # is it a free row?
+       {
+           $columns{"cost",$1} = $3;    # record c_j for this column
+           push(@list_of_columns,$1);   # add column $1 to list
+       }
+       elsif ( grep($_ eq $2, @list_of_E_rows) )  # or an equality row?
+       {
+           $list = $columns{"rows",$1};
+           $list .= " ";
+           $list .= $2;
+           $columns{"rows",$1} = $list;
+       }
+
+    # next, test on name of row in fourth column (may not exist)
+
+       if    ( grep($_ eq $4, @list_of_N_rows) ) # is it a free row?
+       {
+           $columns{"cost",$1} = $5;    # record c_j for this column
+           push(@list_of_columns,$1);   # add column $1 to list
+           next;                        # end of card, get the next
+       }
+       elsif ( grep($_ eq $4, @list_of_E_rows) ) # or an equality row?
+       {
+           $list = $columns{"rows",$1};
+           $list .= " ";
+           $list .= $4;
+           $columns{"rows",$1} = $list;
+           next;
+       }
+    }
+    
+
+    if ( $debug )               # how to make this a command line arg?
+    {
+        print "\n\nlist_of_columns = @list_of_columns\n";
+    }
+    $nrows = @list_of_E_rows;
+    $ncols = @list_of_columns;
+    print "$nrows  $ncols\n";
+
+    foreach $col (@list_of_columns)
+    {
+        $myrows = $columns{"rows",$col}; # list of row names that $col covers
+#       print "col = $col, myrows = $myrows\n";
+
+    # convert row names to numbers and count how many there are
+
+        $nrows      = 0;
+        @row_cover  = ();
+        foreach $r (split(' ',$myrows))
+        {
+            $nrows++;
+            $row_number = $rows{$r};
+            push(@row_cover,$row_number);
+        }
+
+        print $columns{"cost",$col}, " $nrows @row_cover\n";
+    }
+}
+
+###############################################################################
+#           convert airline formatted input file to MPS format
+###############################################################################
+sub af_to_mps
+{
+    local($file,$ip) = @_;    # @_ is the list of paramaters passed in
+
+    if (!open(FILE, "<$file")) {
+       die "Cannot open file $file: $!\n";
+    }
+
+    %edatabase   = ( );
+
+    ########## read the airline-formatted input file ########## 
+
+    $_ = <FILE>;              # read and toss number of row and columns
+
+    $j = 0;                   # count how many columns
+    while ($_ = <FILE>)       # process rest of input
+    {
+        chop;
+        last unless $_;       # Exit if completely blank line
+
+        $j++;                 # chalk up another column
+
+        @line = split(' ',$_);
+        $len = @line;
+        $edatabase{"cost",$j} = $line[0];
+        $edatabase{"ncv", $j} = $line[1];
+        $edatabase{"rows",$j} = join(" ",@line[2 .. $len-1]);
+
+#        print "j = $j, cost = ", $edatabase{"cost",$j}, "\n";
+#        print "        ncv  = ", $edatabase{"ncv", $j}, "\n";
+#        print "        rows = ", $edatabase{"rows",$j}, "\n";
+    }
+    $ncols = $j;             # save count of how many columns
+
+    ########## build an array containing all the row numbers ########## 
+
+    @allrows = ();
+
+    for ( $j=1; $j <= $ncols; $j++ )
+    {
+        $temp = $edatabase{"rows",$j};
+        @rowlist = split(' ',$temp);
+
+        foreach $r (@rowlist)
+        {
+            if ( !grep($_ eq $r, @allrows) )  # is this row already recorded?
+            {
+                push(@allrows,$r);           # add the row to the list
+            }
+        }
+    }
+#    @allrows = sort @allrows;
+     @allrows = sort numerically @allrows;
+
+     @result = split(/\./,$file);
+     $name = $result[0];
+
+    ########## write data out in MPS format ########## 
+
+    print "NAME          $name\n";
+    print "ROWS\n";
+    print " N  COST\n";
+    $~ = ROWS;
+    foreach $r (@allrows)
+    {
+        write;
+    }
+    print "COLUMNS\n";
+    if ( $ip )
+       {print "    MARK0000  'MARKER'                 'INTORG'\n";}
+    for ( $j=1; $j <= $ncols; $j++ )
+    {
+        $~ = COLUMNS_COST;
+        write;
+        $temp = $edatabase{"rows",$j};
+        @rowlist = split(' ',$temp);
+        foreach $r (@rowlist)
+        {
+            $~ = COLUMNS_VALUE;
+            write;
+        }
+    }
+    if ( $ip )
+       {print "    MARK0000  'MARKER'                 'INTEND'\n";}
+    print "RHS\n";
+    $~ = RHS;
+    foreach $r (@allrows)
+    {
+        write;
+    }
+    print "BOUNDS\n";
+    $~ = BOUNDS;
+    for ( $j=1; $j <= $ncols; $j++ )
+    {
+        write;
+    }
+    print "ENDATA\n";
+}
+
+###############################################################################
+#                    numeric sort
+###############################################################################
+sub numerically {$a <=> $b}
+
+###############################################################################
+#                    helpful message
+###############################################################################
+sub usage
+{
+    print "Can only accept two or three arguments:\n";
+    print "   af2mps -mps mps_formated_file\n";
+    print "   af2mps -af  airline_formated_file [-ip]\n";
+    exit(-1);
+}
+
+format ROWS = 
+ E  R@<<<<<<<
+    $r
+.
+
+format COLUMNS_COST = 
+    C@<<<<<<< COST      @<<<<<<                
+    $j,                 $edatabase{"cost",$j}
+.
+
+format COLUMNS_VALUE = 
+    C@<<<<<<< R@<<<<<<< 1     
+    $j,       $r
+.
+
+format RHS = 
+    RHS1      R@<<<<<<< 1     
+              $r
+.
+
+format BOUNDS = 
+ UP BND       C@<<<<<<< 1
+              $j
+.
+
+
+
+
