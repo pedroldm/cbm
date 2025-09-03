@@ -36,7 +36,9 @@ class CBMProblem : public Problem<CBMSol> {
    public:
     int l, c;
     vector<CBMSol> initialSolutions;
+    vector<tuple<int, int>> diffVec;
     vector<vector<int>> lkhInitialSolutions;
+    vector<double> selectionWeights;
     vector<vector<int>> diffMatrix;
     vector<vector<int>> onesToZeros;
     vector<vector<int>> zerosToOnes;
@@ -56,6 +58,8 @@ class CBMProblem : public Problem<CBMSol> {
 
     int movementType;
     double maxTemp;
+    double selectionBias;
+    double totalWeight;
     double constructionBias;
     int maxBlockSize;
     int threads;
@@ -64,7 +68,7 @@ class CBMProblem : public Problem<CBMSol> {
     random_device rng_device;
     mt19937 mersenne_engine;
 
-    CBMProblem(string filename, int movementType, double constructionBias, int maxBlockSize, int threads, int lkhS);
+    CBMProblem(string filename, int movementType, double constructionBias, double selectionBias, int maxBlockSize, int threads, int lkhS);
     CBMSol construction();
     CBMSol greedyConstruction();
     vector<int> lkhConstruction();
@@ -80,6 +84,7 @@ class CBMProblem : public Problem<CBMSol> {
     void initialTour(string sufix = "");
     void runLKH(string sufix = "");
     void createLKHInitialS();
+    int biasedSelection();
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {

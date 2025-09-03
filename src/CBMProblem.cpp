@@ -3,11 +3,13 @@
 CBMProblem::CBMProblem(string filename,
                        int movementType,
                        double constructionBias,
+                       double selectionBias,
                        int maxBlockSize,
                        int threads,
                        int lkhS)
     : mersenne_engine(rng_device()),
       constructionBias(constructionBias),
+      selectionBias(selectionBias),
       maxBlockSize(maxBlockSize),
       threads(threads),
       ISCount(lkhS){    
@@ -45,10 +47,27 @@ CBMProblem::CBMProblem(string filename,
     this->movementType = movementType;
 }
 
+int CBMProblem::biasedSelection() {
+    uniform_real_distribution<double> dist(0.0, this->totalWeight);
+    double rnd = dist(this->mersenne_engine);
+
+    double cum_sum = 0.0;
+    size_t chosen_idx = 0;
+    for (; chosen_idx < this->c; ++chosen_idx) {
+        cum_sum += this->selectionWeights[chosen_idx];
+        if (rnd < cum_sum) break;
+    }
+
+    auto [finalDiff, chosen] = this->diffVec[chosen_idx];
+    cout << chosen_idx << endl;
+    return chosen;
+}
+
 CBMSol CBMProblem::neighbor(CBMSol s) {
     uniform_int_distribution<> dist(0, this->c - 1);
     uniform_int_distribution<> movementDist(1, 3);
-    int index = dist(this->mersenne_engine);
+    
+    int index = (this->selectionBias > 1) ? this->biasedSelection() : dist(this->mersenne_engine);
     int newIndex = dist(this->mersenne_engine);
 
     auto getLeft = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
@@ -191,6 +210,16 @@ void CBMProblem::computeMatrixes() {
             this->diffMatrix[i][j]  = o2z + z2o;
         }
     }
+
+    for(int i = 0 ; i < c ; i++) {
+        int diffCount = accumulate(this->diffMatrix[i].begin(), this->diffMatrix[i].end(), 0);
+        double biasedCount = pow(static_cast<double>(diffCount), this->selectionBias) / this->c;
+        this->diffVec.push_back({static_cast<int>(biasedCount), i});
+    }
+    sort(this->diffVec.begin(), this->diffVec.end());
+    for (auto& [diffCount, idx] : this->diffVec)
+        this->selectionWeights.push_back(pow(static_cast<double>(diffCount), this->selectionBias));
+    this->totalWeight = accumulate(this->selectionWeights.begin(), this->selectionWeights.end(), 0.0);
 }
 
 int CBMProblem::evaluate(CBMSol& s) {

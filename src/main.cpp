@@ -19,8 +19,9 @@ int main(int argc, char* argv[]) {
     float tempMin = 0.05f;
     float tempMax = 2.0f;
     double constructionBias = 2.5;
+    double selectionBias = 2.0;
     int tempL = 4;
-    int lkhS = 5;
+    int lkhS = 0;
     float MKL = 400;
     int PTL = 2000;
     int tempD = 4;
@@ -43,6 +44,8 @@ int main(int argc, char* argv[]) {
             istringstream(arg.substr(6)) >> MKL;
         } else if (arg.find("--PTL=") == 0) {
             istringstream(arg.substr(6)) >> PTL;
+        } else if (arg.find("--selectionBias=") == 0) {
+            istringstream(arg.substr(16)) >> selectionBias;
         } else if (arg.find("--tempD=") == 0) {
             istringstream(arg.substr(8)) >> tempD;
         } else if (arg.find("--upType=") == 0) {
@@ -76,7 +79,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, maxBlockSize, threads, lkhS);
+    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, selectionBias, maxBlockSize, threads, lkhS);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
     auto start = chrono::high_resolution_clock::now();
     prob->createLKHInitialS();
