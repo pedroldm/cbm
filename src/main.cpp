@@ -1,12 +1,12 @@
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <chrono>
-#include <iomanip>
 
 #include "CBMProblem.hpp"
-#include "PTAPI/include/PT.h"
 #include "IO/json.hpp"
+#include "PTAPI/include/PT.h"
 
 using json = nlohmann::json;
 
@@ -19,9 +19,9 @@ int main(int argc, char* argv[]) {
     float tempMin = 0.05f;
     float tempMax = 2.0f;
     double constructionBias = 2.5;
-    double selectionBias = 2.0;
+    double selectionBias = 1.0;
     int tempL = 4;
-    int lkhS = 0;
+    int lkhS = 1;
     float MKL = 400;
     int PTL = 2000;
     int tempD = 4;
@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
     int tempUpdate = 3;
     int movementType = 4;
     int threads = 1;
+    int lkhMaxTime = 120;
     int maxBlockSize = 3;
     bool irace = false;
     string filePath;
@@ -54,6 +55,8 @@ int main(int argc, char* argv[]) {
             istringstream(arg.substr(13)) >> tempUpdate;
         } else if (arg.find("--tempMax=") == 0) {
             istringstream(arg.substr(10)) >> tempMax;
+        } else if (arg.find("--lkhMaxTime=") == 0) {
+            istringstream(arg.substr(13)) >> lkhMaxTime;
         } else if (arg.find("--lkhS=") == 0) {
             istringstream(arg.substr(7)) >> lkhS;
         } else if (arg.find("--maxBlockSize=") == 0) {
@@ -71,7 +74,8 @@ int main(int argc, char* argv[]) {
             else if (value == "false" || value == "0")
                 irace = false;
             else
-                throw invalid_argument("Invalid value for --irace (expected true/false)");
+                throw invalid_argument(
+                    "Invalid value for --irace (expected true/false)");
         } else if (arg.find("--filePath=") == 0) {
             istringstream(arg.substr(11)) >> filePath;
         } else {
@@ -79,8 +83,11 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CBMProblem* prob = new CBMProblem(filePath, movementType, constructionBias, selectionBias, maxBlockSize, threads, lkhS);
-    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType, max(PTL / tempUpdate, 1));
+    CBMProblem* prob =
+        new CBMProblem(filePath, movementType, constructionBias, selectionBias,
+                       maxBlockSize, threads, lkhS, lkhMaxTime);
+    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType,
+                    max(PTL / tempUpdate, 1));
     auto start = chrono::high_resolution_clock::now();
     prob->createLKHInitialS();
     auto lkhFinish = chrono::high_resolution_clock::now();
@@ -89,11 +96,10 @@ int main(int argc, char* argv[]) {
     chrono::duration<double> execution = end - start;
     chrono::duration<double> lkh = lkhFinish - start;
 
-    if(irace) {
+    if (irace) {
         cout << sol.cost + (execution.count() / 10000.0) << endl;
         prob->printS(sol);
-    }
-    else
+    } else
         jsonOutput(sol, *prob, algo, execution, lkh);
 
     delete prob;
@@ -135,25 +141,4 @@ void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
     j["lkh_time_seconds"] = lkh.count();
 
     cout << j.dump(4) << endl;
-}
-
-void validateDeltaF(CBMProblem* prob) {
-    for(int i = 0 ; i < 1000 ; i++) {
-        CBMSol sol = prob->construction();
-        int cost = prob->evaluate(sol);
-        CBMSol newS = prob->neighbor(sol);
-        newS.cost = 0;
-        int newCost = prob->evaluate(newS);
-        cout << "\nNovo Custo (n²): " << newCost << endl;
-        newS.cost = cost;
-        int deltaCost = prob->deltaEval(newS);
-        cout << "Novo Custo (1): " << deltaCost << endl;
-        if(newCost != deltaCost) {
-            newS.cost = cost;
-            int deltaCost = prob->deltaEval(newS);
-            throw runtime_error("Unmatch: " + to_string(newCost) + " != " + to_string(deltaCost));
-        } else {
-            cout << newCost << " = " << deltaCost << endl;;
-        }
-    }
 }

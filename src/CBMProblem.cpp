@@ -6,13 +6,15 @@ CBMProblem::CBMProblem(string filename,
                        double selectionBias,
                        int maxBlockSize,
                        int threads,
-                       int lkhS)
+                       int lkhS,
+                       int lkhMaxTime)
     : mersenne_engine(rng_device()),
       constructionBias(constructionBias),
       selectionBias(selectionBias),
       maxBlockSize(maxBlockSize),
       threads(threads),
-      ISCount(lkhS){    
+      ISCount(lkhS),
+      lkhMaxTime(lkhMaxTime){    
     ifstream input(filename);
     if (!input.is_open()) {
         throw runtime_error("Error opening file: " + filename);
@@ -33,6 +35,8 @@ CBMProblem::CBMProblem(string filename,
     this->onesToZeros.resize(this->c, vector<int>(this->c, 0));
     this->zerosToOnes.resize(this->c, vector<int>(this->c, 0));
     this->onesToOnes.resize(this->c, vector<int>(this->c, 0));
+    this->diffVec.resize(this->c);
+    this->selectionWeights.resize(this->c);
 
     int n, e;
     for (int i = 0; i < this->l; i++) {
@@ -207,18 +211,18 @@ void CBMProblem::computeMatrixes() {
             this->onesToZeros[i][j] = o2z;
             this->zerosToOnes[i][j] = z2o;
             this->onesToOnes[i][j] = o2o;
-            this->diffMatrix[i][j]  = o2z + z2o;
+            this->diffMatrix[i][j] = o2z + z2o;
         }
     }
 
     for(int i = 0 ; i < c ; i++) {
         int diffCount = accumulate(this->diffMatrix[i].begin(), this->diffMatrix[i].end(), 0);
-        double biasedCount = pow(static_cast<double>(diffCount), this->selectionBias) / this->c;
-        this->diffVec.push_back({static_cast<int>(biasedCount), i});
+        double weight = pow(static_cast<double>(diffCount), this->selectionBias);
+        double biasedCount = weight / this->c;
+        this->selectionWeights[i] = weight;
+        this->diffVec[i] = make_tuple(biasedCount, i);
     }
     sort(this->diffVec.begin(), this->diffVec.end());
-    for (auto& [diffCount, idx] : this->diffVec)
-        this->selectionWeights.push_back(pow(static_cast<double>(diffCount), this->selectionBias));
     this->totalWeight = accumulate(this->selectionWeights.begin(), this->selectionWeights.end(), 0.0);
 }
 
@@ -377,6 +381,7 @@ void CBMProblem::toTSP(string sufix) {
     par << "OUTPUT_TOUR_FILE = " << (this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".sol")).string() << "\n";
     par << "RUNS = 1\n";
     par << "INITIAL_TOUR_FILE = " << (this->currPath / "instances" / "tsp" / (this->instanceName + sufix + "_initial_.tour")).string() << endl;
+    par << "TIME_LIMIT = " << this->lkhMaxTime << endl;
 }
 
 void CBMProblem::runLKH(string sufix) {
