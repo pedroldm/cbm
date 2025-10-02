@@ -2,6 +2,7 @@
 
 CBMProblem::CBMProblem(string filename,
                        int movementType,
+                       int constructionMethod,
                        double constructionBias,
                        double selectionBias,
                        int maxBlockSize,
@@ -9,6 +10,7 @@ CBMProblem::CBMProblem(string filename,
                        int lkhS,
                        int lkhMaxTime)
     : mersenne_engine(rng_device()),
+      constructionMethod(constructionMethod),
       constructionBias(constructionBias),
       selectionBias(selectionBias),
       maxBlockSize(maxBlockSize),
@@ -63,12 +65,12 @@ int CBMProblem::biasedSelection() {
     }
 
     auto [finalDiff, chosen] = this->diffVec[chosen_idx];
-    cout << chosen_idx << endl;
     return chosen;
 }
 
 CBMSol CBMProblem::neighbor(CBMSol s) {
     uniform_int_distribution<> dist(0, this->c - 1);
+    uniform_int_distribution<> distL(0, this->l - 1);
     uniform_int_distribution<> movementDist(1, 3);
     
     int index = (this->selectionBias > 1) ? this->biasedSelection() : dist(this->mersenne_engine);
@@ -112,27 +114,11 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
             break;
         }
         case 4: {
-            s.movement = BLOCK_INSERTION;
-            uniform_int_distribution<> blockSizeDist(2, this->maxBlockSize);
-            int blockSize = blockSizeDist(this->mersenne_engine);
-
-            if (index + blockSize > this->c) {
-                index = this->c - blockSize;
-            }
-            vector<int> block(s.sol.begin() + index, s.sol.begin() + index + blockSize);
-
-            int oL = getLeft(index);
-            int oR = (index + blockSize < this->c) ? s.sol[index + blockSize] : -1;
-
-            s.sol.erase(s.sol.begin() + index, s.sol.begin() + index + blockSize);
-            newIndex = dist(this->mersenne_engine) % (this->c - blockSize + 1);
-            s.sol.insert(s.sol.begin() + newIndex, block.begin(), block.end());
-            int nL = getLeft(newIndex);
-            int nR = getRight(newIndex + blockSize - 1);
-            s.mE = {oL, oR, nL, nR};
-            s.mE.insert(s.mE.end(), {block.front(), block.back()});
+            int line = distL(this->mersenne_engine);
+            this->oneBlockSearch(s, {line});
+            s.movement = ONEBLOCKM;
+            break;
         }
-        break;
     }
 
     return s;
@@ -182,16 +168,6 @@ int CBMProblem::deltaEval(CBMSol& s) {
             int afterLeft = andLambda(s.mE[2], s.mE[0]);
             int afterRight = andLambda(s.mE[1], s.mE[3]);
             s.cost += (prevLeft + prevRight) - (afterLeft + afterRight);
-            break;
-        }
-        case BLOCK_INSERTION: {
-            int prevInsPoint = blockLambda(s.mE[2], s.mE[3]);
-            int prevBlockLeft = blockLambda(s.mE[4], s.mE[0]);
-            int prevBlockRight = blockLambda(s.mE[5], s.mE[1]);
-            int afterBlockRemove = blockLambda(s.mE[0], s.mE[1]);
-            int afterBlockLeft = blockLambda(s.mE[2], s.mE[4]);
-            int afterBlockRight = blockLambda(s.mE[3], s.mE[5]);
-            s.cost += (-(prevInsPoint + prevBlockLeft + prevBlockRight) + (afterBlockRemove + afterBlockLeft + afterBlockRight))/2;
             break;
         }
     }
@@ -279,9 +255,21 @@ CBMSol CBMProblem::construction() {
         this->evaluate(s);
         s.construction = LKH;
     } else {
-        s = this->greedyConstruction();
-        this->evaluate(s);
-        s.construction = GREEDY;
+        switch(constructionMethod) {
+            case 1:
+                s = this->greedyConstruction();
+                this->evaluate(s);
+                s.construction = GREEDY;
+                break;
+            case 2:
+                s.sol.resize(this->c);
+                iota(s.sol.begin(), s.sol.end(), 0);
+                shuffle(s.sol.begin(), s.sol.end(), this->mersenne_engine);
+                this->evaluate(s);
+                s = this->oneBlockSearch(s);
+                s.construction = ONEBLOCK;
+                break;
+        }
         {
             lock_guard<mutex> lock(this->ISMutex);
             this->initialSolutions.push_back(s);
@@ -352,6 +340,78 @@ void CBMProblem::printS(CBMSol& s) {
         }
         cout << endl;
     }
+}
+
+CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
+    if (lines.empty()) {
+        lines.resize(this->c);
+        iota(lines.begin(), lines.end(), 0);
+    }
+
+    int currBest = s.cost;
+    bool improved = true;
+    while(improved) {
+        improved = false;
+        for (size_t li = 0; li < lines.size() && !improved; li++) {
+            vector<pair<int, int>> oneBlocks = this->findOneBlocks(s, lines[li]);
+            for(int i = 0 ; i < oneBlocks.size() && !improved ; i++) {
+                for(int j = 0 ; j < oneBlocks.size() && !improved ; j++) {
+                    if(i == j)
+                        continue;
+                    improved = this->moveOneBlockColumns(s, currBest, oneBlocks[i], oneBlocks[j]);
+                }
+            }
+        }
+    }
+
+    return s;
+}
+
+bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2) {
+    auto getLeft = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
+    auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
+    int currCost = s.cost;
+    vector<int> originalS = s.sol;
+
+    for(int i = b1.first ; i <= b1.second ; i++) {
+        for (int j = b2.first; j <= b2.second + 1; ++j) {
+            int element = s.sol[i];
+            int oL = getLeft(i);
+            int oR = getRight(i);
+            int to = moveHelper(s.sol, i, j);
+            int nL = getLeft(to);
+            int nR = getRight(to);
+            s.mE = {oL, oR, nL, nR, element};
+            s.movement = REINSERTION;
+            this->deltaEval(s);
+            if(currBest > s.cost){
+                currBest = s.cost;
+                return true;
+            } else {
+                s.sol = originalS;
+                s.cost = currCost;
+            }
+        }
+    }
+
+    return false;
+}
+
+vector<pair<int, int>> CBMProblem::findOneBlocks(CBMSol& s, int line) {
+    vector<pair<int, int>> pairs;
+    int start, end;
+
+    for(int i = 0 ; i < this->c ; i++) {
+        if(this->binaryMatrix[line][s.sol[i]]) {
+            start = i;
+            while(this->binaryMatrix[line][s.sol[i]] && i < this->c)
+                i++;
+            end = i - 1;
+            pairs.push_back({start, end});
+        }
+    }
+
+    return pairs;
 }
 
 void CBMProblem::toTSP(string sufix) {
@@ -438,9 +498,10 @@ vector<int> CBMProblem::fromTSP(string sufix) {
                     inTourSection = false;
                     break;
                 }
-                tour.push_back(node - 1); // 0-based indexing
+                tour.push_back(node - 1);
             }
         }
     }
     return tour;
 }
+

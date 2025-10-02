@@ -19,9 +19,10 @@ int main(int argc, char* argv[]) {
     float tempMin = 0.05f;
     float tempMax = 2.0f;
     double constructionBias = 2.5;
+    int constructionMethod = 1;
     double selectionBias = 1.0;
     int tempL = 4;
-    int lkhS = 1;
+    int lkhS = 0;
     float MKL = 400;
     int PTL = 2000;
     int tempD = 4;
@@ -47,6 +48,8 @@ int main(int argc, char* argv[]) {
             istringstream(arg.substr(6)) >> PTL;
         } else if (arg.find("--selectionBias=") == 0) {
             istringstream(arg.substr(16)) >> selectionBias;
+        } else if (arg.find("--constructionMethod=") == 0) {
+            istringstream(arg.substr(21)) >> constructionMethod;
         } else if (arg.find("--tempD=") == 0) {
             istringstream(arg.substr(8)) >> tempD;
         } else if (arg.find("--upType=") == 0) {
@@ -84,10 +87,11 @@ int main(int argc, char* argv[]) {
     }
 
     CBMProblem* prob =
-        new CBMProblem(filePath, movementType, constructionBias, selectionBias,
+        new CBMProblem(filePath, movementType, constructionMethod, constructionBias, selectionBias,
                        maxBlockSize, threads, lkhS, lkhMaxTime);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType,
                     max(PTL / tempUpdate, 1));
+
     auto start = chrono::high_resolution_clock::now();
     prob->createLKHInitialS();
     auto lkhFinish = chrono::high_resolution_clock::now();
@@ -131,7 +135,14 @@ void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
         json js;
         js["cost"] = sol.cost;
         js["solution"] = sol.sol;
-        js["construction"] = (sol.construction == GREEDY ? "GREEDY" : "LKH");
+
+        if (sol.construction == GREEDY)
+            js["construction"] = "GREEDY";
+        else if (sol.construction == ONEBLOCK)
+            js["construction"] = "ONEBLOCK";
+        else
+            js["construction"] = "LKH";
+
         initSols.push_back(js);
     }
     j["initial_solutions"] = initSols;

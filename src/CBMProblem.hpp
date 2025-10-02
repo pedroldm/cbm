@@ -27,7 +27,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#define COLUMNS 200
+#define COLUMNS 10000
 
 using namespace std;
 namespace fs = filesystem;
@@ -66,10 +66,12 @@ class CBMProblem : public Problem<CBMSol> {
     int lkhS;
     int lkhMaxTime;
 
+    int constructionMethod;
+
     random_device rng_device;
     mt19937 mersenne_engine;
 
-    CBMProblem(string filename, int movementType, double constructionBias, double selectionBias, int maxBlockSize, int threads, int lkhS, int lkhMaxTime);
+    CBMProblem(string filename, int movementType, int constructionMethod, double constructionBias, double selectionBias, int maxBlockSize, int threads, int lkhS, int lkhMaxTime);
     CBMSol construction();
     CBMSol greedyConstruction();
     vector<int> lkhConstruction();
@@ -86,6 +88,9 @@ class CBMProblem : public Problem<CBMSol> {
     void runLKH(string sufix = "");
     void createLKHInitialS();
     int biasedSelection();
+    CBMSol oneBlockSearch(CBMSol& s, vector<int> lines = {});
+    vector<pair<int, int>> findOneBlocks(CBMSol& s, int line);
+    bool moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2);
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {

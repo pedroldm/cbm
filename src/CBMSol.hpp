@@ -9,13 +9,13 @@ enum Movement {
     REINSERTION,
     TWOOPT,
     SWAP,
-    ADJACENTSWAP,
-    BLOCK_INSERTION
+    ONEBLOCKM
 };
 
 enum Construction {
     GREEDY,
-    LKH
+    LKH,
+    ONEBLOCK
 };
 
 struct CBMSol : public solution {
@@ -37,6 +37,22 @@ inline ostream& operator<<(ostream& os, const CBMSol& s) {
     os << "]" << endl;
     os << "Cost: " << s.cost << endl;
     return os;
+}
+
+template <typename T>
+int moveHelper(std::vector<T>& v, int from, int to) {
+    if (from < 0 || from >= v.size() || to < 0 || to > v.size()) 
+        return -1;
+
+    T value = v[from];
+    v.erase(v.begin() + from);
+
+    if (from < to) 
+        to--;
+
+    v.insert(v.begin() + to, value);
+
+    return to;
 }
 
 #endif
