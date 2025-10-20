@@ -1,0 +1,31 @@
+\chapter{Introdução}
+
+A análise de matrizes binárias (0, 1) é fundamental para a abstração e modelagem de problemas de otimização discreta e combinatória. Um problema canônico neste contexto, formalizado por \citeonline{fulkerson1965incidence}, é a verificação da Propriedade dos 1's Consecutivos (\textit{Consecutive Ones Property} - C1P). Esta propriedade é satisfeita se existir uma permutação das colunas da matriz que resulte em blocos contíguos de 1's em cada linha. A existência de tal permutação valida a consistência dos dados com um modelo estrutural perfeitamente linear, uma questão originalmente motivada pela análise da estrutura de genes. Para exemplificar os conceitos, considere a Matriz~\eqref{eq:matriz_a} (C1P), e a Matriz~\eqref{eq:matriz_b}, para a qual nenhuma permutação de colunas é capaz de satisfazer a propriedade.
+
+\begin{figure}[h!] % Usa um ambiente 'figure' para manter as matrizes juntas
+    \centering
+    \begin{minipage}{0.4\textwidth}
+        \centering
+        \begin{equation} \label{eq:matriz_a}
+            A = \begin{bmatrix}
+                1 & 1 & 1 & 0 \\
+                0 & 1 & 1 & 0 \\
+                0 & 0 & 1 & 1
+            \end{bmatrix}
+        \end{equation}
+    \end{minipage}
+    \begin{minipage}{0.4\textwidth}
+        \centering
+        \begin{equation} \label{eq:matriz_b}
+            B = \begin{bmatrix}
+                1 & 1 & 0 & 0 \\
+                1 & 0 & 1 & 0 \\
+                0 & 1 & 1 & 1
+            \end{bmatrix}
+        \end{equation}
+    \end{minipage}
+\end{figure}
+
+Na prática, a maioria das matrizes que representam problemas reais não possui a C1P. Esta limitação motiva a formulação de um problema de otimização mais geral: o Problema de Minimização de Blocos Consecutivos (\textit{Consecutive Blocks Minimization} - CBM). O objetivo do CBM é determinar a permutação de colunas que minimiza o número total de blocos de 1's na matriz, representando a melhor aproximação possível a uma estrutura linear ideal. Com aplicações em áreas como a arqueologia (\textit{Sequence Dating Problem}) \cite{kendall1969incidence} e a genética computacional (\textit{Physical Mapping Problem}) \cite{alizadeh1995physical}, o CBM é um problema NP-difícil \cite{kou1977polynomial}, o que justifica o desenvolvimento de métodos heurísticos para sua resolução.
+
+Este trabalho propõe um algoritmo híbrido para a resolução do CBM, combinando o Revenimento Paralelo (\textit{Parallel Tempering} — PT) com o algoritmo Lin-Kernighan-Helsgaun (LKH). A metodologia inicia-se com a conversão da instância do CBM em um Problema do Caixeiro Viajante (\textit{Traveling Salesman Problem} — TSP), utilizando a matriz de distâncias de Hamming. Em seguida, o LKH é empregado para construir um conjunto de soluções iniciais de alta qualidade. Por fim, essas soluções são utilizadas como ponto de partida para o PT, que, por apresentar resultados expressivos em problemas de permutação análogos \cite{ALMEIDA2025107000}, é utilizado para refinar a qualidade final das soluções obtidas.
