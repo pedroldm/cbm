@@ -1,6 +1,7 @@
 \chapter{Introdução}
+\label{introduction}
 
-A análise de matrizes binárias (0, 1) é fundamental para a abstração e modelagem de problemas de otimização discreta e combinatória. Um problema canônico neste contexto, formalizado por \citeonline{fulkerson1965incidence}, é a verificação da Propriedade dos 1's Consecutivos (\textit{Consecutive Ones Property} - C1P). Esta propriedade é satisfeita se existir uma permutação das colunas da matriz que resulte em blocos contíguos de 1's em cada linha. A existência de tal permutação valida a consistência dos dados com um modelo estrutural perfeitamente linear, uma questão originalmente motivada pela análise da estrutura de genes. Para exemplificar os conceitos, considere a Matriz~\eqref{eq:matriz_a} (C1P), e a Matriz~\eqref{eq:matriz_b}, para a qual nenhuma permutação de colunas é capaz de satisfazer a propriedade.
+A análise de matrizes binárias (0, 1) é fundamental para a abstração e modelagem de problemas de otimização discreta e combinatória. Um problema canônico neste contexto, formalizado por \citeonline{fulkerson1965incidence}, é a verificação da Propriedade dos 1's Consecutivos (\textit{Consecutive Ones Property} - C1P). Esta propriedade é satisfeita se existir uma permutação das colunas da matriz que resulte em blocos contíguos de 1's em cada linha. A existência de tal permutação valida a consistência dos dados com um modelo estrutural perfeitamente linear, uma questão originalmente motivada pela análise da estrutura de genes. Para exemplificar os conceitos, considere a Matriz $A$~\eqref{eq:matriz_a} (C1P), e a Matriz $B$~\eqref{eq:matriz_b}, para a qual nenhuma permutação de colunas é capaz de satisfazer a propriedade.
 
 \begin{figure}[h!] % Usa um ambiente 'figure' para manter as matrizes juntas
     \centering
@@ -8,9 +9,9 @@ A análise de matrizes binárias (0, 1) é fundamental para a abstração e mode
         \centering
         \begin{equation} \label{eq:matriz_a}
             A = \begin{bmatrix}
-                1 & 1 & 1 & 0 \\
-                0 & 1 & 1 & 0 \\
-                0 & 0 & 1 & 1
+                \textbf{1} & \textbf{1} & \textbf{1} & 0          \\
+                0          & \textbf{1} & \textbf{1} & 0          \\
+                0          & 0          & \textbf{1} & \textbf{1}
             \end{bmatrix}
         \end{equation}
     \end{minipage}
@@ -18,14 +19,63 @@ A análise de matrizes binárias (0, 1) é fundamental para a abstração e mode
         \centering
         \begin{equation} \label{eq:matriz_b}
             B = \begin{bmatrix}
-                1 & 1 & 0 & 0 \\
-                1 & 0 & 1 & 0 \\
-                0 & 1 & 1 & 1
+                0          & \textbf{1} & \textbf{1} & 0          \\
+                0          & \textbf{1} & 0          & \textbf{1} \\
+                \textbf{1} & 0          & \textbf{1} & \textbf{1}
             \end{bmatrix}
         \end{equation}
     \end{minipage}
 \end{figure}
 
-Na prática, a maioria das matrizes que representam problemas reais não possui a C1P. Esta limitação motiva a formulação de um problema de otimização mais geral: o Problema de Minimização de Blocos Consecutivos (\textit{Consecutive Blocks Minimization} - CBM). O objetivo do CBM é determinar a permutação de colunas que minimiza o número total de blocos de 1's na matriz, representando a melhor aproximação possível a uma estrutura linear ideal. Com aplicações em áreas como a arqueologia (\textit{Sequence Dating Problem}) \cite{kendall1969incidence} e a genética computacional (\textit{Physical Mapping Problem}) \cite{alizadeh1995physical}, o CBM é um problema NP-difícil \cite{kou1977polynomial}, o que justifica o desenvolvimento de métodos heurísticos para sua resolução.
+Na prática, a maioria das matrizes que representam problemas reais não possui a C1P. Esta limitação motiva a formulação de um problema de otimização mais geral: o Problema de Minimização de Blocos Consecutivos (\textit{Consecutive Blocks Minimization} - CBM). O objetivo do CBM é determinar a permutação de colunas que minimiza o número total de blocos de 1's na matriz, representando a melhor aproximação possível a uma estrutura linear ideal. A Matriz $B$ ~\eqref{eq:matriz_b} possui 5 blocos de 1's, entretanto, é possível permutar suas colunas de forma a diminuir essa quantidade. A Matriz $C$~\eqref{eq:matriz_c} apresenta uma permutação ótima das colunas da Matriz $B$~\eqref{eq:matriz_b}, reduzindo o total de blocos para 4.
 
-Este trabalho propõe um algoritmo híbrido para a resolução do CBM, combinando o Revenimento Paralelo (\textit{Parallel Tempering} — PT) com o algoritmo Lin-Kernighan-Helsgaun (LKH). A metodologia inicia-se com a conversão da instância do CBM em um Problema do Caixeiro Viajante (\textit{Traveling Salesman Problem} — TSP), utilizando a matriz de distâncias de Hamming. Em seguida, o LKH é empregado para construir um conjunto de soluções iniciais de alta qualidade. Por fim, essas soluções são utilizadas como ponto de partida para o PT, que, por apresentar resultados expressivos em problemas de permutação análogos \cite{ALMEIDA2025107000}, é utilizado para refinar a qualidade final das soluções obtidas.
+\begin{figure}[h!] % Usa um ambiente 'figure' para manter as matrizes juntas
+    \centering
+    % Matriz C (Ótima)
+    \begin{minipage}{0.4\textwidth}
+        \centering
+        \begin{equation} \label{eq:matriz_c}
+            C =
+            \begin{array}{c}
+                % Índices das colunas (permutados)
+                \begin{array}{cccc}
+                    1 & 4 & 2 & 3
+                \end{array} \\[3pt]
+                % Matriz propriamente dita
+                \left[
+                    \begin{array}{cccc}
+                        0          & 0          & \mathbf{1} & \mathbf{1} \\
+                        0          & \mathbf{1} & \mathbf{1} & 0          \\
+                        \mathbf{1} & \mathbf{1} & 0          & \mathbf{1}
+                    \end{array}
+                    \right]
+            \end{array}
+        \end{equation}
+    \end{minipage}
+\end{figure}
+
+O CBM é um problema de relevância multidisciplinar e possui aplicações em áreas diversas, como arqueologia (\textit{Sequence Dating Problem}) \cite{kendall1969incidence}, genética computacional (\textit{Physical Mapping Problem}) \cite{alizadeh1995physical}, compressão de dados em larga escala \cite{lemire2011reordering}, e várias outras. Por se tratar de um problema NP-difícil \cite{kou1977polynomial}, métodos heurísticos têm se provado mais adequados à sua resolução.
+
+Nesse contexto, este trabalho propõe um algoritmo híbrido para a resolução do CBM, combinando o Revenimento Paralelo (\textit{Parallel Tempering} — PT) com o algoritmo Lin-Kernighan-Helsgaun (LKH). A metodologia consiste em converter as instâncias do CBM em instâncias do Problema do Caixeiro Viajante (\textit{Traveling Salesman Problem} — TSP), utilizando a matriz de distâncias de Hamming, e empregar o LKH para construir um conjunto de soluções iniciais de alta qualidade. Essas soluções são utilizadas como ponto de partida para o PT, que, por apresentar resultados expressivos em problemas de permutação análogos \cite{ALMEIDA2025107000}, é utilizado como estratégia de diversificação para expandir o espaço de soluções explorado.
+
+\section{Justificativa}
+
+A relevância do CBM é evidenciada por sua vasta aplicabilidade em domínios práticos distintos, que incluem a seriação arqueológica, o mapeamento genético e a compressão de dados em larga escala \cite{kendall1969incidence, alizadeh1995physical, lemire2011reordering}.
+
+Contudo, a natureza NP-difícil do problema \cite{kou1977polynomial} impõe uma complexidade computacional significativa. A obtenção de soluções ótimas por métodos exatos é, na maioria dos casos práticos, inviável, exigindo um tempo de execução que cresce exponencialmente com o tamanho da instância. Esta complexidade intrínseca é a principal motivação para o desenvolvimento e aprimoramento de métodos heurísticos e metaheurísticos, que buscam encontrar soluções de alta qualidade em tempo computacional razoável.
+
+Embora diversas abordagens heurísticas tenham sido propostas para o CBM, a busca por métodos que avancem o estado da arte — ou seja, que encontrem soluções com um número de blocos ainda menor ou que o façam de forma mais eficiente — é um desafio contínuo. Este trabalho se justifica na exploração de um novo método que propõe a sinergia entre duas técnicas de vanguarda da otimização combinatória: uma das mais poderosas heurísticas para o problema do TSP simétrico e uma robusta metaheurística paralela de diversificação.
+
+\section{Objetivos}
+
+O principal objetivo deste trabalho é desenvolver um algoritmo híbrido, baseado na combinação dos métodos LKH e PT, capaz de avançar o estado da arte do CBM, identificando soluções de menor custo para as instâncias da literatura em tempo computacional viável. São objetivos específicos:
+
+\begin{enumerate}
+    \item Elaborar uma rigorosa revisão da literatura relacionada ao CBM e problemas permutacionais análogos a fim de compreender abordagens anteriores e identificar lacunas;
+    \item Desenvolver um novo método baseado na combinação do algoritmo LKH e da metaheurística PT;
+    \item Realizar experimentos computacionais para configurar o método desenvolvido, analisar suas propriedades a partir das estatísticas de execução e comparar os resultados obtidos com o atual estado da arte.
+\end{enumerate}
+
+\section{Organização do Trabalho}
+
+Este trabalho está organizado como descrito a seguir. O Capítulo \ref{review} apresenta a revisão da literatura relevante em relação ao CBM. Em seguida, no Capítulo \ref{theory}, uma base teórica sólida é estabelecida, abrangendo a definição do problema, os objetivos específicos considerados neste trabalho e uma introdução às técnicas empregadas no seu desenvolvimento. O Capítulo \ref{methods} discute minuciosamente a implementação das técnicas incorporadas no algoritmo, enquanto o Capítulo \ref{experiments} apresenta os resultados obtidos pelo método desenvolvido, bem como uma comparação com o estado da arte. Por fim, o Capítulo \ref{conclusion} encerra este trabalho, fornecendo uma síntese dos resultados alcançados e delineando as próximas etapas de pesquisa.

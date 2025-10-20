@@ -1,0 +1,40 @@
+\providecommand{\abntreprintinfo}[1]{%
+ \citeonline{#1}}
+\setlength{\labelsep}{0pt}\begin{thebibliography}{}
+\providecommand{\abntrefinfo}[3]{}
+\providecommand{\abntbstabout}[1]{}
+\abntbstabout{v<VERSION> }
+
+\bibitem[Alizadeh et al. 1995]{alizadeh1995physical}
+\abntrefinfo{Alizadeh et al.}{Alizadeh et al.}{1995}
+{ALIZADEH, F. et al. Physical mapping of chromosomes: A combinatorial problem in molecular biology.
+\emph{Algorithmica}, Springer, v.~13, n.~1, p. 52--76, 1995.}
+
+\bibitem[Almeida, {de Castro Lima} e Carvalho 2025]{ALMEIDA2025107000}
+\abntrefinfo{Almeida, {de Castro Lima} e Carvalho}{Almeida; {de Castro Lima}; Carvalho}{2025}
+{ALMEIDA, A. L.~B.; {de Castro Lima}, J.; CARVALHO, M. A.~M. Revisiting the parallel tempering algorithm: High-performance computing and applications in operations research.
+\emph{Computers \& Operations Research}, v.~178, p. 107000, 2025.
+ISSN 0305-0548.
+Dispon{\'\i}vel em: \url{https://www.sciencedirect.com/science/article/pii/S0305054825000280}.}
+
+\bibitem[Fulkerson e Gross 1965]{fulkerson1965incidence}
+\abntrefinfo{Fulkerson e Gross}{Fulkerson; Gross}{1965}
+{FULKERSON, D.; GROSS, O. Incidence matrices and interval graphs.
+\emph{Pacific journal of mathematics}, Mathematical Sciences Publishers, v.~15, n.~3, p. 835--855, 1965.}
+
+\bibitem[Kendall 1969]{kendall1969incidence}
+\abntrefinfo{Kendall}{Kendall}{1969}
+{KENDALL, D. Incidence matrices, interval graphs and seriation in archeology.
+\emph{Pacific Journal of mathematics}, Mathematical Sciences Publishers, v.~28, n.~3, p. 565--570, 1969.}
+
+\bibitem[Kou 1977]{kou1977polynomial}
+\abntrefinfo{Kou}{Kou}{1977}
+{KOU, L.~T. Polynomial complete consecutive information retrieval problems.
+\emph{SIAM Journal on Computing}, SIAM, v.~6, n.~1, p. 67--75, 1977.}
+
+\bibitem[Lemire e Kaser 2011]{lemire2011reordering}
+\abntrefinfo{Lemire e Kaser}{Lemire; Kaser}{2011}
+{LEMIRE, D.; KASER, O. Reordering columns for smaller indexes.
+\emph{Information Sciences}, Elsevier, v.~181, n.~12, p. 2550--2570, 2011.}
+
+\end{thebibliography}
