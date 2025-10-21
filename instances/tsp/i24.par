@@ -1,4 +1,0 @@
-PROBLEM_FILE = /home/pedrowsl/cbm/instances/tsp/i24.tsp
-OUTPUT_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/i24.sol
-RUNS = 1
-INITIAL_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/i24_initial_.tour

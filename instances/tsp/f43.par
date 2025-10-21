@@ -1,4 +1,0 @@
-PROBLEM_FILE = /home/pedrowsl/cbm/instances/tsp/f43.tsp
-OUTPUT_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/f43.sol
-RUNS = 1
-INITIAL_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/f43_initial_.tour

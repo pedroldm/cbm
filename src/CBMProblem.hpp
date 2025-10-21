@@ -43,6 +43,7 @@ class CBMProblem : public Problem<CBMSol> {
     vector<vector<int>> onesToZeros;
     vector<vector<int>> zerosToOnes;
     vector<vector<int>> onesToOnes;
+    vector<vector<int>> tspMatrix;
     vector<bitset<COLUMNS>> binaryMatrix;
     filesystem::path currPath;
     filesystem::path tspPath;
@@ -90,7 +91,7 @@ class CBMProblem : public Problem<CBMSol> {
     int biasedSelection();
     CBMSol oneBlockSearch(CBMSol& s, vector<int> lines = {});
     vector<pair<int, int>> findOneBlocks(CBMSol& s, int line);
-    bool moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2);
+    bool moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2, bool returnAnyway);
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {

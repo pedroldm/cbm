@@ -34,6 +34,7 @@ CBMProblem::CBMProblem(string filename,
 
     this->binaryMatrix.resize(this->l);
     this->diffMatrix.resize(this->c, vector<int>(this->c, 0));
+    this->tspMatrix.resize(this->c + 1, vector<int>(this->c + 1, 0));
     this->onesToZeros.resize(this->c, vector<int>(this->c, 0));
     this->zerosToOnes.resize(this->c, vector<int>(this->c, 0));
     this->onesToOnes.resize(this->c, vector<int>(this->c, 0));
@@ -175,6 +176,7 @@ int CBMProblem::deltaEval(CBMSol& s) {
 }
 
 void CBMProblem::computeMatrixes() {
+    #pragma omp parallel for num_threads(this->threads) collapse(2)
     for (int i = 0; i < c; i++) {
         for (int j = 0; j < c; j++) {
             if (i == j) continue;
@@ -188,9 +190,21 @@ void CBMProblem::computeMatrixes() {
             this->zerosToOnes[i][j] = z2o;
             this->onesToOnes[i][j] = o2o;
             this->diffMatrix[i][j] = o2z + z2o;
+            this->tspMatrix[i + 1][j + 1] = this->diffMatrix[i][j];
         }
     }
 
+    this->tspMatrix[0][0] = 0;
+    for (int i = 1; i <= this->c; i++) {
+        int onesCount = 0;
+        for (int row = 0; row < this->l; row++)
+            if (binaryMatrix[row][i-1])
+                onesCount++;
+        this->tspMatrix[0][i] = onesCount;
+        this->tspMatrix[i][0] = onesCount;
+    }
+
+    #pragma omp parallel for num_threads(this->threads)
     for(int i = 0 ; i < c ; i++) {
         int diffCount = accumulate(this->diffMatrix[i].begin(), this->diffMatrix[i].end(), 0);
         double weight = pow(static_cast<double>(diffCount), this->selectionBias);
@@ -249,11 +263,10 @@ CBMSol CBMProblem::construction() {
             lock_guard<mutex> lock(this->ISMutex);
             s.sol = this->lkhInitialSolutions.back();
             this->evaluate(s);
+            s.construction = LKH;
             this->lkhInitialSolutions.pop_back();
             this->initialSolutions.push_back(s);
         }
-        this->evaluate(s);
-        s.construction = LKH;
     } else {
         switch(constructionMethod) {
             case 1:
@@ -343,9 +356,12 @@ void CBMProblem::printS(CBMSol& s) {
 }
 
 CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
+    bool returnAnyway = false;
     if (lines.empty()) {
         lines.resize(this->c);
         iota(lines.begin(), lines.end(), 0);
+        shuffle(lines.begin(), lines.end(), this->mersenne_engine);
+        returnAnyway = true;
     }
 
     int currBest = s.cost;
@@ -354,11 +370,12 @@ CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
         improved = false;
         for (size_t li = 0; li < lines.size() && !improved; li++) {
             vector<pair<int, int>> oneBlocks = this->findOneBlocks(s, lines[li]);
-            for(int i = 0 ; i < oneBlocks.size() && !improved ; i++) {
-                for(int j = 0 ; j < oneBlocks.size() && !improved ; j++) {
+            int size = oneBlocks.size();
+            for(int i = 0 ; i < size && !improved ; i++) {
+                for(int j = 0 ; j < size && !improved ; j++) {
                     if(i == j)
                         continue;
-                    improved = this->moveOneBlockColumns(s, currBest, oneBlocks[i], oneBlocks[j]);
+                    improved = this->moveOneBlockColumns(s, currBest, oneBlocks[i], oneBlocks[j], (returnAnyway && i == size - 1 && j == size - 1));
                 }
             }
         }
@@ -367,7 +384,7 @@ CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
     return s;
 }
 
-bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2) {
+bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2, bool returnAnyway) {
     auto getLeft = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
     auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
     int currCost = s.cost;
@@ -388,6 +405,8 @@ bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1
                 currBest = s.cost;
                 return true;
             } else {
+                if(returnAnyway && i == b1.second && j == b2.second)
+                    return false;
                 s.sol = originalS;
                 s.cost = currCost;
             }
@@ -404,7 +423,7 @@ vector<pair<int, int>> CBMProblem::findOneBlocks(CBMSol& s, int line) {
     for(int i = 0 ; i < this->c ; i++) {
         if(this->binaryMatrix[line][s.sol[i]]) {
             start = i;
-            while(this->binaryMatrix[line][s.sol[i]] && i < this->c)
+            while(i < this->c && this->binaryMatrix[line][s.sol[i]])
                 i++;
             end = i - 1;
             pairs.push_back({start, end});
@@ -425,14 +444,14 @@ void CBMProblem::toTSP(string sufix) {
 
     tsp << "NAME : " << this->instanceName << "\n";
     tsp << "TYPE : TSP\n";
-    tsp << "DIMENSION : " << this->c << "\n";
+    tsp << "DIMENSION : " << this->c + 1 << "\n";
     tsp << "EDGE_WEIGHT_TYPE : EXPLICIT\n";
     tsp << "EDGE_WEIGHT_FORMAT : FULL_MATRIX\n";
     tsp << "EDGE_WEIGHT_SECTION\n";
 
-    for (int i = 0; i < this->c; ++i) {
-        for (int j = 0; j < this->c; ++j) {
-            tsp << diffMatrix[i][j] << (j == this->c - 1 ? "\n" : " ");
+    for (int i = 0; i <= this->c; ++i) {
+        for (int j = 0; j <= this->c; ++j) {
+            tsp << this->tspMatrix[i][j] << (j == this->c - 1 ? "\n" : " ");
         }
     }
     tsp << "EOF\n";
@@ -469,8 +488,9 @@ void CBMProblem::initialTour(string sufix) {
     }
     tour << "TOUR_SECTION" << endl;
     CBMSol s = this->greedyConstruction();
+    tour << "1" << endl;
     for(int i = 0 ; i < this->c ; i++)
-        tour << s.sol[i] + 1 << endl;
+        tour << s.sol[i] + 2 << endl;
     tour << "-1" << endl << "EOF";
 }
 
@@ -498,9 +518,14 @@ vector<int> CBMProblem::fromTSP(string sufix) {
                     inTourSection = false;
                     break;
                 }
-                tour.push_back(node - 1);
+                tour.push_back(node - 2);
             }
         }
+    }
+    auto it = find(tour.begin(), tour.end(), -1);
+    if (it != tour.end()) {
+        rotate(tour.begin(), it, tour.end());
+        tour.erase(tour.begin());
     }
     return tour;
 }
