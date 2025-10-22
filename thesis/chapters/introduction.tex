@@ -27,7 +27,7 @@ A análise de matrizes binárias (0, 1) é fundamental para a abstração e mode
     \end{minipage}
 \end{figure}
 
-Na prática, a maioria das matrizes que representam problemas reais não possui a C1P. Esta limitação motiva a formulação de um problema de otimização mais geral: o Problema de Minimização de Blocos Consecutivos (\textit{Consecutive Blocks Minimization} - CBM). O objetivo do CBM é determinar a permutação de colunas que minimiza o número total de blocos de 1's na matriz, representando a melhor aproximação possível a uma estrutura linear ideal. A Matriz $B$ ~\eqref{eq:matriz_b} possui 5 blocos de 1's, entretanto, é possível permutar suas colunas de forma a diminuir essa quantidade. A Matriz $C$~\eqref{eq:matriz_c} apresenta uma permutação ótima das colunas da Matriz $B$~\eqref{eq:matriz_b}, reduzindo o total de blocos para 4.
+Na prática, a maioria das matrizes que representam problemas reais não possui a C1P. Esta limitação motiva a formulação de um problema de otimização mais geral: o Problema de Minimização de Blocos Consecutivos (\textit{Consecutive Blocks Minimization} - CBM). O objetivo do CBM é determinar a permutação de colunas que minimiza o número total de blocos de 1's na matriz, representando a melhor aproximação possível a uma estrutura linear ideal. A Matriz $B$ ~\eqref{eq:matriz_b} possui 5 blocos de 1's, entretanto, é possível permutar suas colunas de forma a diminuir essa quantidade. A Matriz $C$~\eqref{eq:matriz_c} apresenta uma permutação ótima das colunas da Matriz $B$~\eqref{eq:matriz_b}, reduzindo o total de blocos de 5 para 4.
 
 \begin{figure}[h!] % Usa um ambiente 'figure' para manter as matrizes juntas
     \centering
@@ -60,7 +60,7 @@ Nesse contexto, este trabalho propõe um algoritmo híbrido para a resolução d
 
 \section{Justificativa}
 
-A relevância do CBM é evidenciada por sua vasta aplicabilidade em domínios práticos distintos, que incluem a seriação arqueológica, o mapeamento genético e a compressão de dados em larga escala \cite{kendall1969incidence, alizadeh1995physical, lemire2011reordering}.
+A relevância do CBM é evidenciada por sua vasta aplicabilidade em domínios práticos distintos, que incluem a seriação arqueológica, o mapeamento genético e a compressão de dados em larga escala e vários outros \cite{kendall1969incidence, alizadeh1995physical, lemire2011reordering}.
 
 Contudo, a natureza NP-difícil do problema \cite{kou1977polynomial} impõe uma complexidade computacional significativa. A obtenção de soluções ótimas por métodos exatos é, na maioria dos casos práticos, inviável, exigindo um tempo de execução que cresce exponencialmente com o tamanho da instância. Esta complexidade intrínseca é a principal motivação para o desenvolvimento e aprimoramento de métodos heurísticos e metaheurísticos, que buscam encontrar soluções de alta qualidade em tempo computacional razoável.
 

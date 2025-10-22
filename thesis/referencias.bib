@@ -66,3 +66,107 @@
   year      = {2011},
   publisher = {Elsevier}
 }
+
+@article{BOOTH1976335,
+title = {Testing for the consecutive ones property, interval graphs, and graph planarity using PQ-tree algorithms},
+journal = {Journal of Computer and System Sciences},
+volume = {13},
+number = {3},
+pages = {335-379},
+year = {1976},
+issn = {0022-0000},
+doi = {https://doi.org/10.1016/S0022-0000(76)80045-1},
+url = {https://www.sciencedirect.com/science/article/pii/S0022000076800451},
+author = {Kellogg S. Booth and George S. Lueker},
+abstract = {A data structure called a PQ-tree is introduced. PQ-trees can be used to represent the permutations of a set U in which various subsets of U occur consecutively. Efficient algorithms are presented for manipulating PQ-trees. Algorithms using PQ-trees are then given which test for the consecutive ones property in matrices and for graph planarity. The consecutive ones test is extended to a test for interval graphs using a recently discovered fast recognition algorithm for chordal graphs. All of these algorithms require a number of steps linear in the size of their input.}
+}
+
+@book{dom2009recognition,
+  title={Recognition, Generation, and Application of Binary Matrices with the Consecutive Ones Property},
+  author={Dom, Michael},
+  year={2009},
+  publisher={Cuvillier Gottingen}
+}
+
+@article{HADDADI2015612,
+title = {Polynomial-time local-improvement algorithm for Consecutive Block Minimization},
+journal = {Information Processing Letters},
+volume = {115},
+number = {6},
+pages = {612-617},
+year = {2015},
+issn = {0020-0190},
+doi = {https://doi.org/10.1016/j.ipl.2015.02.010},
+url = {https://www.sciencedirect.com/science/article/pii/S0020019015000332},
+author = {S. Haddadi and S. Chenche and M. Cheraitia and F. Guessoum},
+keywords = {Combinatorial problems, Approximation algorithms, Consecutive Block Minimization, Local-improvement},
+abstract = {A block of consecutive ones (bco for short) in a binary m×n-matrix is any maximal sequence of consecutive ones occurring in the same row. We consider the Consecutive Block Minimization (CBM) problem in which the aim is to minimize the number of bco's by permuting the matrix's columns. The paper introduces a pair of O(n2)-sized local search neighborhoods in which the number of bco's of a neighbor is computed in O(m) time. The performance of a local-search algorithm is then evaluated on some real-world and some randomly-generated instances of the problem.}
+}
+
+@article{SOARES2020104948,
+title = {Heuristic methods to consecutive block minimization},
+journal = {Computers \& Operations Research},
+volume = {120},
+pages = {104948},
+year = {2020},
+issn = {0305-0548},
+doi = {https://doi.org/10.1016/j.cor.2020.104948},
+url = {https://www.sciencedirect.com/science/article/pii/S0305054820300654},
+author = {Leonardo C.R. Soares and Jordi Alves Reinsma and Luis H.L. Nascimento and Marco A.M. Carvalho},
+keywords = {Combinatorial problems, Consecutive block minimization, Metaheuristic, Iterated local search, Exact algorithms},
+abstract = {Many combinatorial problems addressed in the literature are modeled using binary matrices. It is often of interest to verify whether these matrices hold the consecutive ones property (C1P), which implies that there exists a permutation of the columns of the matrix such that all nonzero elements can be placed contiguously, forming a unique 1-block in every row. The minimization of the number of 1-blocks is approached by a well-known problem in the literature called consecutive block minimization (CBM), an NP-hard problem. In this study, we propose a graph representation, a heuristic based on a classical algorithm in graph theory, the implementation of a metaheuristic for solving the CBM and the application of an exact method based on a reduction of the CBM to a particular version of the well-known traveling salesman problem. Computational experiments demonstrate that the proposed metaheuristic implementation is competitive, as it matches or improves the best known solution values for all benchmark instances available in the literature, except for a single instance. The proposed exact method reports, for the first time, optimal solutions for these benchmark instances. Consequently, the proposed methods outperform previous methods and become the new state-of-the-art for solving the CBM.}
+}
+
+@article{haddadi2002note,
+  title={A note on the NP--hardness of the consecutive block minimization problem.},
+  author={Haddadi, Salim},
+  journal={International Transactions in Operational Research},
+  volume={9},
+  number={6},
+  year={2002}
+}
+
+@incollection{lourencco2003iterated,
+  title={Iterated local search},
+  author={Louren{\c{c}}o, Helena R and Martin, Olivier C and St{\"u}tzle, Thomas},
+  booktitle={Handbook of metaheuristics},
+  pages={320--353},
+  year={2003},
+  publisher={Springer}
+}
+
+@article{HADDADI2021105273,
+title = {Iterated local search for consecutive block minimization},
+journal = {Computers \& Operations Research},
+volume = {131},
+pages = {105273},
+year = {2021},
+issn = {0305-0548},
+doi = {https://doi.org/10.1016/j.cor.2021.105273},
+url = {https://www.sciencedirect.com/science/article/pii/S0305054821000654},
+author = {Salim Haddadi},
+keywords = {Consecutive block minimization, Iterated local search, Large-scale neighborhood, Traveling salesman problem solver},
+abstract = {A 1-block in a binary matrix is any maximal sequence of 1s occurring consecutively in the same row. Consecutive block minimization (CBM) requires a permutation of the matrix columns that minimizes the number of 1-blocks. CBM is NP-hard for matrices with a maximum of two 1s per row and an arbitrary number of 1s per column. First, we prove that it is NP-hard even when it is restricted to binary matrices having a maximum of two 1s per row and a maximum of three 1s per column. In these circumstances, a reasonable and traditional approach to solve the problem is to design a heuristic capable of finding good configurations within acceptable computation times. This paper proposes an Iterated Local Search (ILS) metaheuristic. A binary matrix satisfies the strong consecutive ones property (is strongly C1P) if its non-zero entries occur consecutively in each row. It is C1P if there is a permutation of its columns such that the resulting matrix is strongly C1P. In this study, two necessary conditions for a binary matrix to be C1P are provided, each allowing to define a neighborhood for local search (LS). In addition, a third large-scale neighborhood is proposed where the local optimal solution can be directly obtained by solving a Traveling Salesman Problem (TSP). It is noteworthy that the three neighborhoods are being proposed for the first time. The ILS algorithm is tested on a dataset from the OR-library, composed of thirty large-scale set covering instances of varying sizes and densities. Comparison with two TSP solvers as well as with a recently published metaheuristic, from both accuracy and computing time points of view, allows to conclude that the proposed method competes favorably with the methods available in the literature.}
+}
+
+@article{helsgaun2000effective,
+  title={An effective implementation of the Lin--Kernighan traveling salesman heuristic},
+  author={Helsgaun, Keld},
+  journal={European journal of operational research},
+  volume={126},
+  number={1},
+  pages={106--130},
+  year={2000},
+  publisher={Elsevier}
+}
+
+@article{haddadi2022exponential,
+  title={Exponential neighborhood search for consecutive block minimization},
+  author={Haddadi, Salim},
+  journal={International Transactions in Operational Research},
+  volume={29},
+  number={5},
+  pages={2855--2870},
+  year={2022},
+  publisher={Wiley Online Library}
+}
