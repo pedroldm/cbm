@@ -1,0 +1,5 @@
+PROBLEM_FILE = /home/pedrowsl/cbm/instances/tsp/b53.tsp
+OUTPUT_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/b53.sol
+RUNS = 1
+INITIAL_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/b53_initial_.tour
+TIME_LIMIT = 120

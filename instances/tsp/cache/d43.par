@@ -1,0 +1,5 @@
+PROBLEM_FILE = /home/pedrowsl/cbm/instances/tsp/d43.tsp
+OUTPUT_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/d43.sol
+RUNS = 1
+INITIAL_TOUR_FILE = /home/pedrowsl/cbm/instances/tsp/d43_initial_.tour
+TIME_LIMIT = 120

@@ -8,7 +8,8 @@ CBMProblem::CBMProblem(string filename,
                        int maxBlockSize,
                        int threads,
                        int lkhS,
-                       int lkhMaxTime)
+                       int lkhMaxTime,
+                       bool lkhCache)
     : mersenne_engine(rng_device()),
       constructionMethod(constructionMethod),
       constructionBias(constructionBias),
@@ -16,7 +17,8 @@ CBMProblem::CBMProblem(string filename,
       maxBlockSize(maxBlockSize),
       threads(threads),
       ISCount(lkhS),
-      lkhMaxTime(lkhMaxTime){    
+      lkhMaxTime(lkhMaxTime),
+      lkhCache(lkhCache){    
     ifstream input(filename);
     if (!input.is_open()) {
         throw runtime_error("Error opening file: " + filename);
@@ -243,12 +245,14 @@ void CBMProblem::createLKHInitialS() {
     #pragma omp parallel for
     for (int i = 0; i < this->lkhS; i++) {
         string tid = to_string(omp_get_thread_num());
-        this->toTSP(tid);
-        this->initialTour(tid);
-        this->runLKH(tid);
-        vector<int> s = this->fromTSP(tid);
+        if (!this->lkhCache) {
+            this->toTSP(tid);
+            this->initialTour(tid);
+            this->runLKH(tid);
+        }
         {
             lock_guard<mutex> lock(this->ISMutex);
+            vector<int> s = this->fromTSP(tid);
             this->lkhInitialSolutions.push_back(s);
         }
     }
@@ -496,6 +500,8 @@ void CBMProblem::initialTour(string sufix) {
 
 vector<int> CBMProblem::fromTSP(string sufix) {
     filesystem::path solPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".sol");
+    if(this->lkhCache)
+        solPath = this->currPath / "instances" / "tsp" / "cache" / (this->instanceName + sufix + ".sol");
     ifstream sol(solPath);
     if (!sol) {
         throw runtime_error("Error opening solution file: " + solPath.string());

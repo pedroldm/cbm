@@ -33,6 +33,7 @@ int main(int argc, char* argv[]) {
     int lkhMaxTime = 120;
     int maxBlockSize = 3;
     bool irace = false;
+    bool lkhCache = false;
     string filePath;
     string tspPath = "./instances/tsp/";
 
@@ -79,6 +80,15 @@ int main(int argc, char* argv[]) {
             else
                 throw invalid_argument(
                     "Invalid value for --irace (expected true/false)");
+        } else if (arg.find("--lkhCache=") == 0) {
+            string value = arg.substr(11);
+            if (value == "true" || value == "1")
+                lkhCache = true;
+            else if (value == "false" || value == "0")
+                lkhCache = false;
+            else
+                throw invalid_argument(
+                    "Invalid value for --lkhCache (expected true/false)");
         } else if (arg.find("--filePath=") == 0) {
             istringstream(arg.substr(11)) >> filePath;
         } else {
@@ -88,7 +98,7 @@ int main(int argc, char* argv[]) {
 
     CBMProblem* prob =
         new CBMProblem(filePath, movementType, constructionMethod, constructionBias, selectionBias,
-                       maxBlockSize, threads, lkhS, lkhMaxTime);
+                       maxBlockSize, threads, lkhS, lkhMaxTime, lkhCache);
     PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType,
                     max(PTL / tempUpdate, 1));
 
@@ -118,6 +128,9 @@ void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
     // Final solution
     j["final_solution"]["cost"] = s.cost;
     j["final_solution"]["solution"] = s.sol;
+
+    j["instance"]["columns"] = prob.c;
+    j["instance"]["lines"] = prob.l;
 
     vector<vector<int>> matrix;
     for (int row = 0; row < prob.l; row++) {
