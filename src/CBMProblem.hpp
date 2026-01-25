@@ -93,6 +93,8 @@ class CBMProblem : public Problem<CBMSol> {
     CBMSol oneBlockSearch(CBMSol& s, vector<int> lines = {});
     vector<pair<int, int>> findOneBlocks(CBMSol& s, int line);
     bool moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2, bool returnAnyway);
+    CBMSol oneBlockMovement(CBMSol& s);
+    void moveOneBlockRandomly(CBMSol& s, pair<int, int> b1, pair<int, int> b2);
 
     template <typename T>
     void printMatrix(const vector<vector<T>>& matrix) {

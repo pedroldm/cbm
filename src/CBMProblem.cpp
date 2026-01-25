@@ -118,7 +118,7 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
         }
         case 4: {
             int line = distL(this->mersenne_engine);
-            this->oneBlockSearch(s, {line});
+            this->oneBlockMovement(s);
             s.movement = ONEBLOCKM;
             break;
         }
@@ -386,6 +386,51 @@ CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
     }
 
     return s;
+}
+
+CBMSol CBMProblem::oneBlockMovement(CBMSol& s) {
+    uniform_int_distribution<> distL(0, this->l - 1);
+    int maxTries = 10;
+    int li = distL(this->mersenne_engine);
+    vector<pair<int, int>> oneBlocks = this->findOneBlocks(s, li);
+
+    while(maxTries-- > 0 && oneBlocks.size() < 2) {
+        li = distL(this->mersenne_engine);
+        oneBlocks = this->findOneBlocks(s, li);
+    }
+    if(oneBlocks.size() < 2)
+        return s;
+
+    vector<int> indices(oneBlocks.size());
+    iota(indices.begin(), indices.end(), 0);
+    shuffle(indices.begin(), indices.end(), this->mersenne_engine);
+    pair<int, int> b1 = oneBlocks[indices[0]];
+    pair<int, int> b2 = oneBlocks[indices[1]];
+
+    moveOneBlockRandomly(s, b1, b2);
+
+    return s;
+}
+
+void CBMProblem::moveOneBlockRandomly(CBMSol& s, pair<int, int> b1, pair<int, int> b2) {
+    auto getLeft  = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
+    auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
+
+    uniform_int_distribution<int> distI(b1.first, b1.second);
+    int i = distI(mersenne_engine);
+    uniform_int_distribution<int> distJ(b2.first, b2.second + 1);
+    int j = distJ(mersenne_engine);
+
+    int element = s.sol[i];
+    int oL = getLeft(i);
+    int oR = getRight(i);
+    int to = moveHelper(s.sol, i, j);
+    int nL = getLeft(to);
+    int nR = getRight(to);
+    s.mE = {oL, oR, nL, nR, element};
+    s.movement = REINSERTION;
+
+    this->deltaEval(s);
 }
 
 bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2, bool returnAnyway) {

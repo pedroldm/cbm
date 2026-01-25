@@ -20,7 +20,7 @@ class Problem{
 		void setBestSol(S sol);
 		virtual S construction()=0;
 		virtual S neighbor(S sol)=0;
-		virtual double evaluate(S sol)=0;
+		virtual int evaluate(S& sol)=0;
 };
 
 template<typename S>
