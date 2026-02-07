@@ -82,6 +82,9 @@ NodeMCMC<S>::~NodeMCMC(){
 
 template<typename S>
 void NodeMCMC<S>::run(){
+
+	sol.evalSol = prob->evaluate(sol);
+	setBestSol(sol);
 	
 	// calc MCMC
 	for (int i = 0; i < MCL; i++){
