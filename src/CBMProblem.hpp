@@ -27,7 +27,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#define COLUMNS 10000
+#define COLUMNS 500
 
 using namespace std;
 namespace fs = filesystem;

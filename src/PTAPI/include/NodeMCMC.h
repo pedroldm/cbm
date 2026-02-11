@@ -72,8 +72,8 @@ NodeMCMC<S>::NodeMCMC(int MCL_, atomic<int>* PTL_, double temp_, Problem<S>* pro
 	maxPercPTL = maxPerc;
 	indexPT = pool_->getIndexPT();
 	sol = prob->construction();
+	prob->evaluate(sol);
 	bestSol = sol;
-				
 }
 
 template<typename S>
@@ -82,10 +82,6 @@ NodeMCMC<S>::~NodeMCMC(){
 
 template<typename S>
 void NodeMCMC<S>::run(){
-
-	sol.evalSol = prob->evaluate(sol);
-	setBestSol(sol);
-	
 	// calc MCMC
 	for (int i = 0; i < MCL; i++){
 		

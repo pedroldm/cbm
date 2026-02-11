@@ -124,7 +124,6 @@ CBMSol CBMProblem::neighbor(CBMSol s) {
         }
     }
 
-    s.needEvaluation = true;
     return s;
 }
 
@@ -220,10 +219,7 @@ void CBMProblem::computeMatrixes() {
 }
 
 int CBMProblem::evaluate(CBMSol& s) {
-    if (s.needEvaluation)
-        return (s.cost) ? this->deltaEval(s) : this->completeEval(s);
-    else
-        return s.cost;
+    return (s.cost) ? this->deltaEval(s) : this->completeEval(s);
 }
 
 int CBMProblem::completeEval(CBMSol& s) {
