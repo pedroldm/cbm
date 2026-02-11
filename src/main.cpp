@@ -10,10 +10,10 @@
 
 using json = nlohmann::json;
 
-void validateDeltaF(CBMProblem* prob);
 void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
                 chrono::duration<double> execution,
                 chrono::duration<double> lkh);
+void debugDeltaEval(CBMProblem& prob, PT<CBMSol>& algo, int iterations);
 
 int main(int argc, char* argv[]) {
     float tempMin = 0.05f;
@@ -116,9 +116,46 @@ int main(int argc, char* argv[]) {
     } else
         jsonOutput(sol, *prob, algo, execution, lkh);
 
+    /*
+    debugDeltaEval(*prob, algo, 100000);
+    */
+
     delete prob;
     return 0;
 }
+
+void debugDeltaEval(CBMProblem& prob, PT<CBMSol>& algo, int iterations) {
+    for (int i = 0 ; i < iterations ; i++) {
+        CBMSol s = prob.construction();
+        prob.completeEval(s);
+
+        cout << "Iteration: " << i << endl;
+        cout << "Initial Cost: " << s.cost << endl;
+
+        CBMSol neighbor = prob.neighbor(s);
+
+        prob.deltaEval(neighbor);
+        int deltaCost = neighbor.cost;
+        cout << "Movement: " << neighbor.movement << endl;
+        cout << "Delta Cost: " << deltaCost << endl;
+
+        prob.completeEval(neighbor);
+        int completeCost = neighbor.cost;
+        cout << "Complete Cost: " << completeCost << endl;
+
+        if (deltaCost != completeCost) {
+            std::ostringstream oss;
+            oss << "Delta evaluation mismatch at iteration " << i
+                << "\nInitial cost: " << s.cost
+                << "\nDelta cost: " << deltaCost
+                << "\nComplete cost: " << completeCost
+                << "\nDifference: " << (deltaCost - completeCost);
+
+            throw std::runtime_error(oss.str());
+        }
+    }
+}
+
 
 void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
                 chrono::duration<double> execution,

@@ -24,6 +24,7 @@ struct CBMSol : public solution {
     Movement movement;
     Construction construction;
     int cost;
+    bool needEvaluation;
 };
 
 inline ostream& operator<<(ostream& os, const CBMSol& s) {
