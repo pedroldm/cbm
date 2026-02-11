@@ -72,7 +72,7 @@ NodeMCMC<S>::NodeMCMC(int MCL_, atomic<int>* PTL_, double temp_, Problem<S>* pro
 	maxPercPTL = maxPerc;
 	indexPT = pool_->getIndexPT();
 	sol = prob->construction();
-	prob->evaluate(sol);
+	sol.evalSol = prob->evaluate(sol);
 	bestSol = sol;
 }
 
