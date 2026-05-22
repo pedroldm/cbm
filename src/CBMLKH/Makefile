@@ -11,23 +11,15 @@ CXXFLAGS_DEBUG = -fopenmp -Wall -Wextra -std=c++17 -g
 CXXFLAGS_PRD = -fopenmp -std=c++17 -O3 -march=native
 
 # Source files
-SRCS = src/PTLKH/CBMSol.cpp src/PTLKH/CBMProblem.cpp src/PTLKH/main.cpp
+SRCS = CBMLKH.cpp Solution.cpp main.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
 OBJS_DEBUG = $(SRCS:.cpp=.debug.o)
 OBJS_PRD = $(SRCS:.cpp=.prd.o)
 
-# Compile source files into debug object files
-%.debug.o: %.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS_DEBUG) -c $< -o $@
-
-# Compile source files into production object files
-%.prd.o: %.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS_PRD) -c $< -o $@
-
 # Header files
-HEADERS = src/PTLKH/IO/json.hpp src/PTLKH/CBMSol.hpp src/PTLKH/CBMProblem.hpp
+HEADERS = CBMLKH.hpp Solution.hpp
 
 # Target executable
 TARGET = main
@@ -60,16 +52,17 @@ $(TARGET_PRD): $(OBJS_PRD)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Compile source files into debug object files
-%.o.debug: %.cpp $(HEADERS)
+%.debug.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS_DEBUG) -c $< -o $@
 
 # Compile source files into production object files
-%.o.prd: %.cpp $(HEADERS)
+%.prd.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS_PRD) -c $< -o $@
 
 # Clean up build files
 clean:
-	rm -f $(OBJS) $(OBJS_DEBUG) $(OBJS_PRD) $(TARGET) $(TARGET_DEBUG) $(TARGET_PRD)
+	rm -f $(OBJS) $(OBJS_DEBUG) $(OBJS_PRD) \
+	$(TARGET) $(TARGET_DEBUG) $(TARGET_PRD)
 
 # Phony targets
 .PHONY: dev debug prd clean
