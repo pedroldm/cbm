@@ -4,9 +4,9 @@
 #include <sstream>
 #include <string>
 
+#include "../IO/json.hpp"
+#include "../PTAPI/include/PT.h"
 #include "CBMProblem.hpp"
-#include "IO/json.hpp"
-#include "PTAPI/include/PT.h"
 
 using json = nlohmann::json;
 using Clock = chrono::high_resolution_clock;

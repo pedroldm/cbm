@@ -11,15 +11,23 @@ CXXFLAGS_DEBUG = -fopenmp -Wall -Wextra -std=c++17 -g
 CXXFLAGS_PRD = -fopenmp -std=c++17 -O3 -march=native
 
 # Source files
-SRCS = src/CBMSol.cpp src/CBMProblem.cpp src/main.cpp
+SRCS = src/PTLKH/CBMSol.cpp src/PTLKH/CBMProblem.cpp src/PTLKH/main.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
-OBJS_DEBUG = $(SRCS:.cpp=.o.debug)
-OBJS_PRD = $(SRCS:.cpp=.o.prd)
+OBJS_DEBUG = $(SRCS:.cpp=.debug.o)
+OBJS_PRD = $(SRCS:.cpp=.prd.o)
+
+# Compile source files into debug object files
+%.debug.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS_DEBUG) -c $< -o $@
+
+# Compile source files into production object files
+%.prd.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS_PRD) -c $< -o $@
 
 # Header files
-HEADERS = src/IO/json.hpp src/CBMSol.hpp src/CBMProblem.hpp
+HEADERS = src/PTLKH/IO/json.hpp src/PTLKH/CBMSol.hpp src/PTLKH/CBMProblem.hpp
 
 # Target executable
 TARGET = main

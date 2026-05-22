@@ -1,7 +1,7 @@
 #ifndef SRFLP_HPP
 #define SRFLP_HPP
 
-#include "PTAPI/include/Problem.h"
+#include "../PTAPI/include/Problem.h"
 
 using namespace std;
 

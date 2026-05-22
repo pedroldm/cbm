@@ -25,8 +25,8 @@
 #include <utility>
 #include <vector>
 
+#include "../PTAPI/include/Problem.h"
 #include "CBMSol.hpp"
-#include "PTAPI/include/Problem.h"
 
 #define COLUMNS 500
 
