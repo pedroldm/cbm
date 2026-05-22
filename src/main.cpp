@@ -9,197 +9,203 @@
 #include "PTAPI/include/PT.h"
 
 using json = nlohmann::json;
+using Clock = chrono::high_resolution_clock;
+using Duration = chrono::duration<double>;
 
-void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
-                chrono::duration<double> execution,
-                chrono::duration<double> lkh);
-void debugDeltaEval(CBMProblem& prob, PT<CBMSol>& algo, int iterations);
+// ─── Config ──────────────────────────────────────────────────────────────────
 
-int main(int argc, char* argv[]) {
+struct Config {
     float tempMin = 0.05f;
     float tempMax = 2.0f;
+    int tempL = 4;
+    int tempD = 4;
+    int tempUpdate = 3;
+    int upType = 1;
+    float MKL = 400;
+    int PTL = 2000;
     double constructionBias = 2.5;
     int constructionMethod = 1;
     double selectionBias = 1.0;
-    int tempL = 4;
-    int lkhS = 0;
-    float MKL = 400;
-    int PTL = 2000;
-    int tempD = 4;
-    int upType = 1;
-    int tempUpdate = 3;
     int movementType = 4;
-    int threads = 1;
-    int lkhMaxTime = 120;
     int maxBlockSize = 3;
+    int threads = 1;
+    int lkhS = 0;
+    int lkhMaxTime = 120;
     bool irace = false;
     bool lkhCache = false;
     string filePath;
     string tspPath = "./instances/tsp/";
+};
 
-    for (int i = 1; i < argc; ++i) {
-        string arg = argv[i];
-        if (arg.find("--tempMin=") == 0) {
-            istringstream(arg.substr(10)) >> tempMin;
-        } else if (arg.find("--tempL=") == 0) {
-            istringstream(arg.substr(8)) >> tempL;
-        } else if (arg.find("--MKL=") == 0) {
-            istringstream(arg.substr(6)) >> MKL;
-        } else if (arg.find("--PTL=") == 0) {
-            istringstream(arg.substr(6)) >> PTL;
-        } else if (arg.find("--selectionBias=") == 0) {
-            istringstream(arg.substr(16)) >> selectionBias;
-        } else if (arg.find("--constructionMethod=") == 0) {
-            istringstream(arg.substr(21)) >> constructionMethod;
-        } else if (arg.find("--tempD=") == 0) {
-            istringstream(arg.substr(8)) >> tempD;
-        } else if (arg.find("--upType=") == 0) {
-            istringstream(arg.substr(9)) >> upType;
-        } else if (arg.find("--tempUpdate=") == 0) {
-            istringstream(arg.substr(13)) >> tempUpdate;
-        } else if (arg.find("--tempMax=") == 0) {
-            istringstream(arg.substr(10)) >> tempMax;
-        } else if (arg.find("--lkhMaxTime=") == 0) {
-            istringstream(arg.substr(13)) >> lkhMaxTime;
-        } else if (arg.find("--lkhS=") == 0) {
-            istringstream(arg.substr(7)) >> lkhS;
-        } else if (arg.find("--maxBlockSize=") == 0) {
-            istringstream(arg.substr(15)) >> maxBlockSize;
-        } else if (arg.find("--threads=") == 0) {
-            istringstream(arg.substr(10)) >> threads;
-        } else if (arg.find("--movementType=") == 0) {
-            istringstream(arg.substr(15)) >> movementType;
-        } else if (arg.find("--constructionBias=") == 0) {
-            istringstream(arg.substr(19)) >> constructionBias;
-        } else if (arg.find("--irace=") == 0) {
-            string value = arg.substr(8);
-            if (value == "true" || value == "1")
-                irace = true;
-            else if (value == "false" || value == "0")
-                irace = false;
-            else
-                throw invalid_argument(
-                    "Invalid value for --irace (expected true/false)");
-        } else if (arg.find("--lkhCache=") == 0) {
-            string value = arg.substr(11);
-            if (value == "true" || value == "1")
-                lkhCache = true;
-            else if (value == "false" || value == "0")
-                lkhCache = false;
-            else
-                throw invalid_argument(
-                    "Invalid value for --lkhCache (expected true/false)");
-        } else if (arg.find("--filePath=") == 0) {
-            istringstream(arg.substr(11)) >> filePath;
-        } else {
-            throw runtime_error("Unkown argument: " + arg);
-        }
-    }
+// ─── Argument parsing ─────────────────────────────────────────────────────────
 
-    CBMProblem* prob =
-        new CBMProblem(filePath, movementType, constructionMethod, constructionBias, selectionBias,
-                       maxBlockSize, threads, lkhS, lkhMaxTime, lkhCache);
-    PT<CBMSol> algo(tempMin, tempMax, tempL, MKL, PTL, tempD, upType,
-                    max(PTL / tempUpdate, 1));
-
-    auto start = chrono::high_resolution_clock::now();
-    prob->createLKHInitialS();
-    auto lkhFinish = chrono::high_resolution_clock::now();
-    CBMSol sol = algo.start(threads, prob);
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> execution = end - start;
-    chrono::duration<double> lkh = lkhFinish - start;
-
-    if (irace) {
-        cout << sol.cost + (execution.count() / 10000.0) << endl;
-        prob->printS(sol);
-    } else
-        jsonOutput(sol, *prob, algo, execution, lkh);
-
-    /*
-    debugDeltaEval(*prob, algo, 100000);
-    */
-
-    delete prob;
-    return 0;
+template <typename T>
+T parseValue(const string& raw) {
+    T val;
+    istringstream(raw) >> val;
+    return val;
 }
 
-void debugDeltaEval(CBMProblem& prob, PT<CBMSol>& algo, int iterations) {
-    for (int i = 0 ; i < iterations ; i++) {
+bool parseBool(const string& key, const string& value) {
+    if (value == "true" || value == "1") return true;
+    if (value == "false" || value == "0") return false;
+    throw invalid_argument("Invalid value for --" + key + " (expected true/false)");
+}
+
+// Returns the part after "prefix" if arg starts with it, else "".
+string stripPrefix(const string& arg, const string& prefix) {
+    if (arg.rfind(prefix, 0) == 0) return arg.substr(prefix.size());
+    return {};
+}
+
+Config parseArgs(int argc, char* argv[]) {
+    Config cfg;
+    for (int i = 1; i < argc; ++i) {
+        const string arg = argv[i];
+
+        // Macro-like helper: try to match a flag and assign a parsed value.
+        auto tryParse = [&]<typename T>(const string& flag, T& field) -> bool {
+            string val = stripPrefix(arg, "--" + flag + "=");
+            if (val.empty()) return false;
+            field = parseValue<T>(val);
+            return true;
+        };
+
+        if (tryParse("tempMin", cfg.tempMin)) {
+        } else if (tryParse("tempMax", cfg.tempMax)) {
+        } else if (tryParse("tempL", cfg.tempL)) {
+        } else if (tryParse("tempD", cfg.tempD)) {
+        } else if (tryParse("tempUpdate", cfg.tempUpdate)) {
+        } else if (tryParse("upType", cfg.upType)) {
+        } else if (tryParse("MKL", cfg.MKL)) {
+        } else if (tryParse("PTL", cfg.PTL)) {
+        } else if (tryParse("constructionBias", cfg.constructionBias)) {
+        } else if (tryParse("constructionMethod", cfg.constructionMethod)) {
+        } else if (tryParse("selectionBias", cfg.selectionBias)) {
+        } else if (tryParse("movementType", cfg.movementType)) {
+        } else if (tryParse("maxBlockSize", cfg.maxBlockSize)) {
+        } else if (tryParse("threads", cfg.threads)) {
+        } else if (tryParse("lkhS", cfg.lkhS)) {
+        } else if (tryParse("lkhMaxTime", cfg.lkhMaxTime)) {
+        } else if (tryParse("filePath", cfg.filePath)) {
+        } else if (string v = stripPrefix(arg, "--irace="); !v.empty())
+            cfg.irace = parseBool("irace", v);
+        else if (string v = stripPrefix(arg, "--lkhCache="); !v.empty())
+            cfg.lkhCache = parseBool("lkhCache", v);
+        else
+            throw runtime_error("Unknown argument: " + arg);
+    }
+    return cfg;
+}
+
+// ─── Output helpers ───────────────────────────────────────────────────────────
+
+string constructionLabel(int construction) {
+    switch (construction) {
+        case GREEDY:
+            return "GREEDY";
+        case ONEBLOCK:
+            return "ONEBLOCK";
+        default:
+            return "LKH";
+    }
+}
+
+json buildSolutionMatrix(const CBMSol& s, const CBMProblem& prob) {
+    vector<vector<int>> matrix;
+    matrix.reserve(prob.l);
+    for (int row = 0; row < prob.l; ++row) {
+        vector<int> rowVec;
+        rowVec.reserve(prob.c);
+        for (int col = 0; col < prob.c; ++col) rowVec.push_back(prob.binaryMatrix[row][s.sol[col]]);
+        matrix.push_back(move(rowVec));
+    }
+    return matrix;
+}
+
+json buildInitialSolutions(const CBMProblem& prob) {
+    json initSols = json::array();
+    for (const auto& sol : prob.initialSolutions) {
+        initSols.push_back({
+            {"cost", sol.cost},
+            {"solution", sol.sol},
+            {"construction", constructionLabel(sol.construction)},
+        });
+    }
+    return initSols;
+}
+
+void jsonOutput(const CBMSol& s, const CBMProblem& prob, Duration execution, Duration lkh) {
+    json j = {
+        {"final_solution",
+         {
+             {"cost", s.cost},
+             {"solution", s.sol},
+             {"matrix", buildSolutionMatrix(s, prob)},
+         }},
+        {"instance",
+         {
+             {"columns", prob.c},
+             {"lines", prob.l},
+         }},
+        {"initial_solutions", buildInitialSolutions(prob)},
+        {"execution_time_seconds", execution.count()},
+        {"lkh_time_seconds", lkh.count()},
+    };
+    cout << j.dump(4) << "\n";
+}
+
+void iraceOutput(CBMSol& s, CBMProblem& prob, Duration execution) {
+    cout << s.cost + (execution.count() / 10000.0) << "\n";
+    prob.printS(s);
+}
+
+// ─── Debug helper ─────────────────────────────────────────────────────────────
+
+void debugDeltaEval(CBMProblem& prob, int iterations) {
+    for (int i = 0; i < iterations; ++i) {
         CBMSol s = prob.construction();
         prob.completeEval(s);
 
-        cout << "Iteration: " << i << endl;
-        cout << "Initial Cost: " << s.cost << endl;
-
         CBMSol neighbor = prob.neighbor(s);
-
         prob.deltaEval(neighbor);
-        int deltaCost = neighbor.cost;
-        cout << "Movement: " << neighbor.movement << endl;
-        cout << "Delta Cost: " << deltaCost << endl;
+        const int deltaCost = neighbor.cost;
 
         prob.completeEval(neighbor);
-        int completeCost = neighbor.cost;
-        cout << "Complete Cost: " << completeCost << endl;
+        const int completeCost = neighbor.cost;
 
         if (deltaCost != completeCost) {
-            std::ostringstream oss;
-            oss << "Delta evaluation mismatch at iteration " << i
-                << "\nInitial cost: " << s.cost
-                << "\nDelta cost: " << deltaCost
-                << "\nComplete cost: " << completeCost
-                << "\nDifference: " << (deltaCost - completeCost);
-
-            throw std::runtime_error(oss.str());
+            ostringstream oss;
+            oss << "Delta evaluation mismatch at iteration " << i << "\nInitial cost:  " << s.cost << "\nDelta cost:    " << deltaCost
+                << "\nComplete cost: " << completeCost << "\nDifference:    " << (deltaCost - completeCost);
+            throw runtime_error(oss.str());
         }
     }
 }
 
+// ─── main ─────────────────────────────────────────────────────────────────────
 
-void jsonOutput(CBMSol& s, CBMProblem& prob, PT<CBMSol>& algo,
-                chrono::duration<double> execution,
-                chrono::duration<double> lkh) {
-    json j;
+int main(int argc, char* argv[]) {
+    const Config cfg = parseArgs(argc, argv);
 
-    // Final solution
-    j["final_solution"]["cost"] = s.cost;
-    j["final_solution"]["solution"] = s.sol;
+    CBMProblem prob(cfg.filePath, cfg.movementType, cfg.constructionMethod, cfg.constructionBias, cfg.selectionBias, cfg.maxBlockSize, cfg.threads,
+                    cfg.lkhS, cfg.lkhMaxTime, cfg.lkhCache);
 
-    j["instance"]["columns"] = prob.c;
-    j["instance"]["lines"] = prob.l;
+    PT<CBMSol> algo(cfg.tempMin, cfg.tempMax, cfg.tempL, cfg.MKL, cfg.PTL, cfg.tempD, cfg.upType, max(cfg.PTL / cfg.tempUpdate, 1));
 
-    vector<vector<int>> matrix;
-    for (int row = 0; row < prob.l; row++) {
-        vector<int> rowVec;
-        for (int col = 0; col < prob.c; col++) {
-            rowVec.push_back(prob.binaryMatrix[row][s.sol[col]]);
-        }
-        matrix.push_back(rowVec);
-    }
-    j["final_solution"]["matrix"] = matrix;
+    const auto t0 = Clock::now();
+    prob.createLKHInitialS();
+    const auto t1 = Clock::now();
+    CBMSol sol = algo.start(cfg.threads, &prob);
+    const auto t2 = Clock::now();
 
-    // Initial solutions
-    json initSols = json::array();
-    for (const auto& sol : prob.initialSolutions) {
-        json js;
-        js["cost"] = sol.cost;
-        js["solution"] = sol.sol;
+    const Duration lkh = t1 - t0;
+    const Duration execution = t2 - t0;
 
-        if (sol.construction == GREEDY)
-            js["construction"] = "GREEDY";
-        else if (sol.construction == ONEBLOCK)
-            js["construction"] = "ONEBLOCK";
-        else
-            js["construction"] = "LKH";
+    if (cfg.irace)
+        iraceOutput(sol, prob, execution);
+    else
+        jsonOutput(sol, prob, execution, lkh);
 
-        initSols.push_back(js);
-    }
-    j["initial_solutions"] = initSols;
-
-    // Times
-    j["execution_time_seconds"] = execution.count();
-    j["lkh_time_seconds"] = lkh.count();
-
-    cout << j.dump(4) << endl;
+    return 0;
 }

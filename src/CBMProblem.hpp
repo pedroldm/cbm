@@ -1,12 +1,19 @@
 #ifndef CBMProblem_HPP
 #define CBMProblem_HPP
 
+#include <omp.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #include <algorithm>
+#include <atomic>
 #include <bitset>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <numeric>
 #include <queue>
 #include <random>
@@ -15,17 +22,11 @@
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
-#include <filesystem>
 #include <utility>
-#include <mutex>
-#include <omp.h>
-#include <atomic>
+#include <vector>
 
 #include "CBMSol.hpp"
 #include "PTAPI/include/Problem.h"
-#include <sys/syscall.h>
-#include <unistd.h>
 
 #define COLUMNS 500
 
@@ -73,7 +74,8 @@ class CBMProblem : public Problem<CBMSol> {
     random_device rng_device;
     mt19937 mersenne_engine;
 
-    CBMProblem(string filename, int movementType, int constructionMethod, double constructionBias, double selectionBias, int maxBlockSize, int threads, int lkhS, int lkhMaxTime, bool lkhCache);
+    CBMProblem(string filename, int movementType, int constructionMethod, double constructionBias, double selectionBias, int maxBlockSize,
+               int threads, int lkhS, int lkhMaxTime, bool lkhCache);
     CBMSol construction();
     CBMSol greedyConstruction();
     vector<int> lkhConstruction();

@@ -1,15 +1,11 @@
 #include "CBMProblem.hpp"
 
-CBMProblem::CBMProblem(string filename,
-                       int movementType,
-                       int constructionMethod,
-                       double constructionBias,
-                       double selectionBias,
-                       int maxBlockSize,
-                       int threads,
-                       int lkhS,
-                       int lkhMaxTime,
-                       bool lkhCache)
+// ─────────────────────────────────────────────
+//  Constructor
+// ─────────────────────────────────────────────
+
+CBMProblem::CBMProblem(string filename, int movementType, int constructionMethod, double constructionBias, double selectionBias, int maxBlockSize,
+                       int threads, int lkhS, int lkhMaxTime, bool lkhCache)
     : mersenne_engine(rng_device()),
       constructionMethod(constructionMethod),
       constructionBias(constructionBias),
@@ -18,22 +14,19 @@ CBMProblem::CBMProblem(string filename,
       threads(threads),
       ISCount(lkhS),
       lkhMaxTime(lkhMaxTime),
-      lkhCache(lkhCache){    
+      lkhCache(lkhCache) {
     ifstream input(filename);
-    if (!input.is_open()) {
-        throw runtime_error("Error opening file: " + filename);
-    }
+    if (!input.is_open()) throw runtime_error("Error opening file: " + filename);
+
     auto pos = filename.find_last_of("/\\");
     this->lkhS = lkhS;
-    this->instanceName = (pos == string::npos) 
-        ? filename 
-        : filename.substr(pos + 1);
+    this->instanceName = (pos == string::npos) ? filename : filename.substr(pos + 1);
     this->currPath = filesystem::current_path();
     this->lkhPath = this->currPath / "src" / "LKH3" / "LKH";
 
-    input >> this->l;
-    input >> this->c;
+    input >> this->l >> this->c;
 
+    // Allocate all matrices and vectors up-front
     this->binaryMatrix.resize(this->l);
     this->diffMatrix.resize(this->c, vector<int>(this->c, 0));
     this->tspMatrix.resize(this->c + 1, vector<int>(this->c + 1, 0));
@@ -43,12 +36,13 @@ CBMProblem::CBMProblem(string filename,
     this->diffVec.resize(this->c);
     this->selectionWeights.resize(this->c);
 
-    int n, e;
-    for (int i = 0; i < this->l; i++) {
-        input >> n;
-        for (int j = 0; j < n; j++) {
-            input >> e;
-            this->binaryMatrix[i][e - 1] = true;
+    // Read sparse binary matrix (rows given as lists of 1-indexed column indices)
+    int nonZeroCount, col;
+    for (int row = 0; row < this->l; row++) {
+        input >> nonZeroCount;
+        for (int j = 0; j < nonZeroCount; j++) {
+            input >> col;
+            this->binaryMatrix[row][col - 1] = true;
         }
     }
 
@@ -56,137 +50,182 @@ CBMProblem::CBMProblem(string filename,
     this->movementType = movementType;
 }
 
+// ─────────────────────────────────────────────
+//  Selection
+// ─────────────────────────────────────────────
+
+// Picks a column index using weighted-random selection (higher diff → more likely).
 int CBMProblem::biasedSelection() {
     uniform_real_distribution<double> dist(0.0, this->totalWeight);
-    double rnd = dist(this->mersenne_engine);
+    double roll = dist(this->mersenne_engine);
 
-    double cum_sum = 0.0;
-    size_t chosen_idx = 0;
-    for (; chosen_idx < this->c; ++chosen_idx) {
-        cum_sum += this->selectionWeights[chosen_idx];
-        if (rnd < cum_sum) break;
+    double cumulative = 0.0;
+    size_t idx = 0;
+    for (; idx < this->c; ++idx) {
+        cumulative += this->selectionWeights[idx];
+        if (roll < cumulative) break;
     }
 
-    auto [finalDiff, chosen] = this->diffVec[chosen_idx];
-    return chosen;
+    auto [score, column] = this->diffVec[idx];
+    return column;
 }
 
+// ─────────────────────────────────────────────
+//  Neighbor generation
+// ─────────────────────────────────────────────
+
 CBMSol CBMProblem::neighbor(CBMSol s) {
-    uniform_int_distribution<> dist(0, this->c - 1);
-    uniform_int_distribution<> distL(0, this->l - 1);
-    uniform_int_distribution<> movementDist(1, 3);
-    
-    int index = (this->selectionBias > 1) ? this->biasedSelection() : dist(this->mersenne_engine);
-    int newIndex = dist(this->mersenne_engine);
+    uniform_int_distribution<> colDist(0, this->c - 1);
+    uniform_int_distribution<> rowDist(0, this->l - 1);
+    uniform_int_distribution<> moveDist(1, 3);
 
-    auto getLeft = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
-    auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
+    // Pick the primary column (biased or uniform)
+    int index = (this->selectionBias > 1) ? this->biasedSelection() : colDist(this->mersenne_engine);
+    int newIndex = colDist(this->mersenne_engine);
 
-    int movement = (this->movementType < 4) ? this->movementType : movementDist(this->mersenne_engine);
+    // Helpers to safely read adjacent elements in the permutation
+    auto leftOf = [&](int i) { return (i > 0) ? s.sol[i - 1] : -1; };
+    auto rightOf = [&](int i) { return (i + 1 < this->c) ? s.sol[i + 1] : -1; };
+
+    int movement = (this->movementType < 4) ? this->movementType : moveDist(this->mersenne_engine);
 
     switch (movement) {
+        // ── Case 1: swap two columns (adjacent → treated as 2-opt, non-adjacent → SWAP)
         case 1:
             if (index > newIndex) swap(index, newIndex);
-            if(abs(newIndex - index) > 1) {
+            if (abs(newIndex - index) > 1) {
                 s.movement = SWAP;
-                s.mE = {getLeft(index), getRight(index), getLeft(newIndex), getRight(newIndex), s.sol[index], s.sol[newIndex]};
+                s.mE = {leftOf(index), rightOf(index), leftOf(newIndex), rightOf(newIndex), s.sol[index], s.sol[newIndex]};
                 swap(s.sol[index], s.sol[newIndex]);
-            }
-            else {
+            } else {
                 s.movement = TWOOPT;
-                s.mE = {getLeft(index), s.sol[index], s.sol[newIndex], getRight(newIndex)};
+                s.mE = {leftOf(index), s.sol[index], s.sol[newIndex], rightOf(newIndex)};
                 swap(s.sol[index], s.sol[newIndex]);
             }
             break;
+
+        // ── Case 2: reverse a segment (classic 2-opt)
         case 2:
             if (index > newIndex) swap(index, newIndex);
             s.movement = TWOOPT;
-            s.mE = {getLeft(index), s.sol[index], s.sol[newIndex], getRight(newIndex)};
+            s.mE = {leftOf(index), s.sol[index], s.sol[newIndex], rightOf(newIndex)};
             reverse(s.sol.begin() + index, s.sol.begin() + newIndex + 1);
             break;
+
+        // ── Case 3: remove a column and reinsert it at another position
         case 3: {
             s.movement = REINSERTION;
-            int element = s.sol[index];
-            int oL = getLeft(index);
-            int oR = getRight(index);
+            int elem = s.sol[index];
+            int origLeft = leftOf(index);
+            int origRight = rightOf(index);
             s.sol.erase(s.sol.begin() + index);
-            s.sol.insert(s.sol.begin() + newIndex, element);
-            int nL = getLeft(newIndex);
-            int nR = getRight(newIndex);
-            s.mE = {oL, oR, nL, nR, element};
+            s.sol.insert(s.sol.begin() + newIndex, elem);
+            int destLeft = leftOf(newIndex);
+            int destRight = rightOf(newIndex);
+            s.mE = {origLeft, origRight, destLeft, destRight, elem};
             break;
         }
-        case 4: {
-            int line = distL(this->mersenne_engine);
+
+        // ── Case 4: move a contiguous "one-block" to another position
+        case 4:
             this->oneBlockMovement(s);
             s.movement = ONEBLOCKM;
             break;
-        }
     }
 
     return s;
 }
 
+// ─────────────────────────────────────────────
+//  Evaluation
+// ─────────────────────────────────────────────
+
+int CBMProblem::evaluate(CBMSol& s) {
+    // Use fast incremental eval when cost is already known, full scan otherwise
+    return s.cost ? this->deltaEval(s) : this->completeEval(s);
+}
+
+// Full O(l·c) evaluation: count 0→1 transitions across all rows.
+int CBMProblem::completeEval(CBMSol& s) {
+    s.cost = 0;
+
+    // First column contributes a block-start for every row where it is 1
+    for (int row = 0; row < this->l; row++)
+        if (this->binaryMatrix[row][s.sol[0]]) s.cost++;
+
+    // Subsequent columns: count transitions from 0 to 1
+    for (int col = 1; col < this->c; col++)
+        for (int row = 0; row < this->l; row++)
+            if (this->binaryMatrix[row][s.sol[col]] && !this->binaryMatrix[row][s.sol[col - 1]]) s.cost++;
+
+    return s.cost;
+}
+
+// Incremental evaluation: only recomputes cost for the edges touched by the last move.
 int CBMProblem::deltaEval(CBMSol& s) {
-    auto lambda = [&](int L, int R, int e) -> int {
-        if (L != -1 && R != -1) {
-            return (this->diffMatrix[L][e] +
-                    this->diffMatrix[e][R] -
-                    this->diffMatrix[L][R]) / 2;
-        } else if (L == -1) {
-            return this->onesToZeros[e][R];
-        } else if (R == -1) {
-            return this->onesToZeros[e][L];
-        }
+    // Cost of inserting `e` between neighbours L and R
+    auto insertionCost = [&](int L, int R, int e) -> int {
+        if (L != -1 && R != -1) return (this->diffMatrix[L][e] + this->diffMatrix[e][R] - this->diffMatrix[L][R]) / 2;
+        if (L == -1) return this->onesToZeros[e][R];
+        /* R == -1 */ return this->onesToZeros[e][L];
     };
 
-    auto andLambda = [&](int i, int j) -> int {
-        if(i == -1 || j == -1)
-            return 0;
-        return this->onesToOnes[i][j];
-    };
+    // Shared-ones count for adjacent pair (used by 2-opt)
+    auto sharedOnes = [&](int i, int j) -> int { return (i == -1 || j == -1) ? 0 : this->onesToOnes[i][j]; };
 
-    auto blockLambda = [&](int i, int j) -> int {
-        return (i != -1 && j != -1) ? this->diffMatrix[i][j] : 0;
-    };
+    // Diff between two columns (0 when either is a boundary sentinel)
+    auto edgeDiff = [&](int i, int j) -> int { return (i != -1 && j != -1) ? this->diffMatrix[i][j] : 0; };
 
-    switch(s.movement) {
+    switch (s.movement) {
         case REINSERTION: {
-            int prev = lambda(s.mE[0], s.mE[1], s.mE[4]);
-            int after = lambda(s.mE[2], s.mE[3], s.mE[4]);
-            s.cost += (-prev + after);
+            // mE = { origLeft, origRight, destLeft, destRight, element }
+            int removedCost = insertionCost(s.mE[0], s.mE[1], s.mE[4]);
+            int insertedCost = insertionCost(s.mE[2], s.mE[3], s.mE[4]);
+            s.cost += -removedCost + insertedCost;
             break;
         }
         case SWAP: {
-            int prevLeft = lambda(s.mE[0], s.mE[1], s.mE[4]);
-            int prevRight = lambda(s.mE[2], s.mE[3], s.mE[5]);
-            int afterLeft = lambda(s.mE[2], s.mE[3], s.mE[4]);
-            int afterRight = lambda(s.mE[0], s.mE[1], s.mE[5]);
-            s.cost += -(prevLeft + prevRight) + (afterLeft + afterRight);
+            // mE = { leftA, rightA, leftB, rightB, elemA, elemB }
+            int beforeA = insertionCost(s.mE[0], s.mE[1], s.mE[4]);
+            int beforeB = insertionCost(s.mE[2], s.mE[3], s.mE[5]);
+            int afterA = insertionCost(s.mE[2], s.mE[3], s.mE[4]);
+            int afterB = insertionCost(s.mE[0], s.mE[1], s.mE[5]);
+            s.cost += -(beforeA + beforeB) + (afterA + afterB);
             break;
         }
         case TWOOPT: {
-            int prevLeft = andLambda(s.mE[1], s.mE[0]);
-            int prevRight = andLambda(s.mE[2], s.mE[3]);
-            int afterLeft = andLambda(s.mE[2], s.mE[0]);
-            int afterRight = andLambda(s.mE[1], s.mE[3]);
-            s.cost += (prevLeft + prevRight) - (afterLeft + afterRight);
+            // mE = { leftEdge, elemA, elemB, rightEdge }
+            // Reversing the segment changes which pairs share ones at the boundary edges
+            int before = sharedOnes(s.mE[1], s.mE[0]) + sharedOnes(s.mE[2], s.mE[3]);
+            int after = sharedOnes(s.mE[2], s.mE[0]) + sharedOnes(s.mE[1], s.mE[3]);
+            s.cost += before - after;
             break;
         }
     }
     return s.cost;
 }
 
+// ─────────────────────────────────────────────
+//  Matrix pre-computation
+// ─────────────────────────────────────────────
+
 void CBMProblem::computeMatrixes() {
-    #pragma omp parallel for num_threads(this->threads) collapse(2)
+// Fill pairwise relationship counts between every pair of columns
+#pragma omp parallel for num_threads(this->threads) collapse(2)
     for (int i = 0; i < c; i++) {
         for (int j = 0; j < c; j++) {
             if (i == j) continue;
+
             int o2z = 0, z2o = 0, o2o = 0;
             for (int row = 0; row < l; row++) {
-                if (binaryMatrix[row][i] && !binaryMatrix[row][j]) o2z++;
-                else if (!binaryMatrix[row][i] && binaryMatrix[row][j]) z2o++;
-                else if (binaryMatrix[row][i] && binaryMatrix[row][j]) o2o++;
+                bool bi = binaryMatrix[row][i];
+                bool bj = binaryMatrix[row][j];
+                if (bi && !bj)
+                    o2z++;
+                else if (!bi && bj)
+                    z2o++;
+                else if (bi && bj)
+                    o2o++;
             }
             this->onesToZeros[i][j] = o2z;
             this->zerosToOnes[i][j] = z2o;
@@ -196,64 +235,45 @@ void CBMProblem::computeMatrixes() {
         }
     }
 
+    // Depot node (index 0) edge weights = number of ones in each column
     this->tspMatrix[0][0] = 0;
     for (int i = 1; i <= this->c; i++) {
         int onesCount = 0;
         for (int row = 0; row < this->l; row++)
-            if (binaryMatrix[row][i-1])
-                onesCount++;
+            if (binaryMatrix[row][i - 1]) onesCount++;
         this->tspMatrix[0][i] = onesCount;
         this->tspMatrix[i][0] = onesCount;
     }
 
-    #pragma omp parallel for num_threads(this->threads)
-    for(int i = 0 ; i < c ; i++) {
-        int diffCount = accumulate(this->diffMatrix[i].begin(), this->diffMatrix[i].end(), 0);
-        double weight = pow(static_cast<double>(diffCount), this->selectionBias);
-        double biasedCount = weight / this->c;
+// Build biased-selection weights: weight ∝ totalDiff ^ selectionBias
+#pragma omp parallel for num_threads(this->threads)
+    for (int i = 0; i < c; i++) {
+        int totalDiff = accumulate(this->diffMatrix[i].begin(), this->diffMatrix[i].end(), 0);
+        double weight = pow(static_cast<double>(totalDiff), this->selectionBias);
         this->selectionWeights[i] = weight;
-        this->diffVec[i] = make_tuple(biasedCount, i);
+        this->diffVec[i] = make_tuple(weight / this->c, i);
     }
     sort(this->diffVec.begin(), this->diffVec.end());
     this->totalWeight = accumulate(this->selectionWeights.begin(), this->selectionWeights.end(), 0.0);
 }
 
-int CBMProblem::evaluate(CBMSol& s) {
-    return (s.cost) ? this->deltaEval(s) : this->completeEval(s);
-}
+// ─────────────────────────────────────────────
+//  Construction
+// ─────────────────────────────────────────────
 
-int CBMProblem::completeEval(CBMSol& s) {
-    s.cost = 0;
-
-    for (int row = 0; row < this->l; row++) {
-        if (this->binaryMatrix[row][s.sol[0]]) {
-            s.cost++;
-        }
-    }
-    for (int col = 1; col < this->c; col++) {
-        for (int row = 0; row < this->l; row++) {
-            if (this->binaryMatrix[row][s.sol[col]] &&
-                !this->binaryMatrix[row][s.sol[col - 1]])
-                s.cost++;
-        }
-    }
-
-    return s.cost;
-}
-
+// Generates lkhS solutions by running LKH and stores them in lkhInitialSolutions.
 void CBMProblem::createLKHInitialS() {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < this->lkhS; i++) {
-        string tid = to_string(omp_get_thread_num());
+        string threadSuffix = to_string(omp_get_thread_num());
         if (!this->lkhCache) {
-            this->toTSP(tid);
-            this->initialTour(tid);
-            this->runLKH(tid);
+            this->toTSP(threadSuffix);
+            this->initialTour(threadSuffix);
+            this->runLKH(threadSuffix);
         }
         {
             lock_guard<mutex> lock(this->ISMutex);
-            vector<int> s = this->fromTSP(tid);
-            this->lkhInitialSolutions.push_back(s);
+            this->lkhInitialSolutions.push_back(this->fromTSP(threadSuffix));
         }
     }
 }
@@ -261,24 +281,25 @@ void CBMProblem::createLKHInitialS() {
 CBMSol CBMProblem::construction() {
     CBMSol s;
     s.cost = 0;
-    if(this->ISCount) {
+
+    if (this->ISCount) {
+        // Consume one pre-computed LKH solution
         this->ISCount--;
-        {
-            lock_guard<mutex> lock(this->ISMutex);
-            s.sol = this->lkhInitialSolutions.back();
-            this->evaluate(s);
-            s.construction = LKH;
-            this->lkhInitialSolutions.pop_back();
-            this->initialSolutions.push_back(s);
-        }
+        lock_guard<mutex> lock(this->ISMutex);
+        s.sol = this->lkhInitialSolutions.back();
+        s.construction = LKH;
+        this->lkhInitialSolutions.pop_back();
+        this->evaluate(s);
+        this->initialSolutions.push_back(s);
     } else {
-        switch(constructionMethod) {
+        switch (constructionMethod) {
             case 1:
                 s = this->greedyConstruction();
                 this->evaluate(s);
                 s.construction = GREEDY;
                 break;
             case 2:
+                // Random permutation improved by one-block local search
                 s.sol.resize(this->c);
                 iota(s.sol.begin(), s.sol.end(), 0);
                 shuffle(s.sol.begin(), s.sol.end(), this->mersenne_engine);
@@ -287,99 +308,93 @@ CBMSol CBMProblem::construction() {
                 s.construction = ONEBLOCK;
                 break;
         }
-        {
-            lock_guard<mutex> lock(this->ISMutex);
-            this->initialSolutions.push_back(s);
-        }
+        lock_guard<mutex> lock(this->ISMutex);
+        this->initialSolutions.push_back(s);
     }
+
     return s;
 }
 
+// Greedy nearest-neighbour construction with biased randomisation.
 CBMSol CBMProblem::greedyConstruction() {
-    uniform_int_distribution<> dist(0, this->c - 1);
-    unordered_set<int> out;
-    CBMSol ss;
+    uniform_int_distribution<> colDist(0, this->c - 1);
+    unordered_set<int> remaining;
+    CBMSol s;
 
-    ss.cost = 0;
-    ss.sol.resize(this->c);
-    int curr = dist(this->mersenne_engine);
+    s.cost = 0;
+    s.sol.resize(this->c);
+    int current = colDist(this->mersenne_engine);
 
-    for (int i = 0; i < this->c; i++) 
-        out.insert(i);
+    for (int i = 0; i < this->c; i++) remaining.insert(i);
 
-    int idx = 0;
-    out.erase(curr);
-    ss.sol[idx++] = curr;
-    while (!out.empty()) {
-        int nI = this->nextInsertion(curr, out);
-        ss.sol[idx++] = nI;
-        out.erase(nI);
-        curr = nI;
+    int pos = 0;
+    remaining.erase(current);
+    s.sol[pos++] = current;
+
+    while (!remaining.empty()) {
+        current = this->nextInsertion(current, remaining);
+        s.sol[pos++] = current;
+        remaining.erase(current);
     }
 
-    return ss;
+    return s;
 }
 
-int CBMProblem::nextInsertion(int& curr, unordered_set<int>& out) {
-    vector<tuple<int, int>> similarity;
-    for (int i = 0; i < this->c; i++)
-        if (out.count(i))
-            similarity.push_back({this->l - this->diffMatrix[curr][i], i});
+// Picks the next column to append using biased-random selection over sorted candidates.
+int CBMProblem::nextInsertion(int& current, unordered_set<int>& remaining) {
+    // Build similarity list: more similar (fewer diffs) = ranked higher
+    vector<tuple<int, int>> candidates;
+    candidates.reserve(remaining.size());
+    for (int i : remaining) candidates.push_back({this->l - this->diffMatrix[current][i], i});
 
-    sort(similarity.begin(), similarity.end(),
-         [](const tuple<int, int>& a, const tuple<int, int>& b) {
-             return get<0>(a) > get<0>(b);
-         });
+    sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) { return get<0>(a) > get<0>(b); });
 
-    vector<double> weights(similarity.size());
-    for (size_t i = 0; i < similarity.size(); ++i) {
-        weights[i] = 1.0 / pow(i + 1, this->constructionBias);
+    // Weight by rank: rank-1 gets weight 1/1^bias, rank-2 gets 1/2^bias, etc.
+    vector<double> weights(candidates.size());
+    for (size_t rank = 0; rank < candidates.size(); ++rank) weights[rank] = 1.0 / pow(rank + 1, this->constructionBias);
+
+    double totalWeight = accumulate(weights.begin(), weights.end(), 0.0);
+    uniform_real_distribution<double> dist(0.0, totalWeight);
+    double roll = dist(this->mersenne_engine);
+    double cumulative = 0.0;
+    size_t chosen = 0;
+
+    for (; chosen < weights.size(); ++chosen) {
+        cumulative += weights[chosen];
+        if (roll < cumulative) break;
     }
 
-    double total_weight = accumulate(weights.begin(), weights.end(), 0.0);
-    uniform_real_distribution<double> dist(0.0, total_weight);
-    double rnd = dist(this->mersenne_engine);
-    double cum_sum = 0.0;
-    size_t chosen_idx = 0;
-
-    for (; chosen_idx < weights.size(); ++chosen_idx) {
-        cum_sum += weights[chosen_idx];
-        if (rnd < cum_sum) break;
-    }
-
-    return get<1>(similarity[chosen_idx]);
+    return get<1>(candidates[chosen]);
 }
 
-void CBMProblem::printS(CBMSol& s) {
-    for (int row = 0; row < this->l; row++) {
-        for (int col = 0; col < this->c; col++) {
-            cout << this->binaryMatrix[row][s.sol[col]] << " ";
-        }
-        cout << endl;
-    }
-}
+// ─────────────────────────────────────────────
+//  One-block local search
+// ─────────────────────────────────────────────
 
-CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
-    bool returnAnyway = false;
-    if (lines.empty()) {
-        lines.resize(this->c);
-        iota(lines.begin(), lines.end(), 0);
-        shuffle(lines.begin(), lines.end(), this->mersenne_engine);
-        returnAnyway = true;
+// Iterative improvement: for each row, tries moving elements of one-blocks
+// closer to other one-blocks until no improving move is found.
+CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> rows) {
+    bool searchAllRows = rows.empty();
+    if (searchAllRows) {
+        rows.resize(this->c);
+        iota(rows.begin(), rows.end(), 0);
+        shuffle(rows.begin(), rows.end(), this->mersenne_engine);
     }
 
-    int currBest = s.cost;
+    int best = s.cost;
     bool improved = true;
-    while(improved) {
+
+    while (improved) {
         improved = false;
-        for (size_t li = 0; li < lines.size() && !improved; li++) {
-            vector<pair<int, int>> oneBlocks = this->findOneBlocks(s, lines[li]);
-            int size = oneBlocks.size();
-            for(int i = 0 ; i < size && !improved ; i++) {
-                for(int j = 0 ; j < size && !improved ; j++) {
-                    if(i == j)
-                        continue;
-                    improved = this->moveOneBlockColumns(s, currBest, oneBlocks[i], oneBlocks[j], (returnAnyway && i == size - 1 && j == size - 1));
+        for (size_t ri = 0; ri < rows.size() && !improved; ri++) {
+            vector<pair<int, int>> blocks = this->findOneBlocks(s, rows[ri]);
+            int numBlocks = blocks.size();
+
+            for (int i = 0; i < numBlocks && !improved; i++) {
+                for (int j = 0; j < numBlocks && !improved; j++) {
+                    if (i == j) continue;
+                    bool isLastPair = searchAllRows && (i == numBlocks - 1) && (j == numBlocks - 1);
+                    improved = this->moveOneBlockColumns(s, best, blocks[i], blocks[j], isLastPair);
                 }
             }
         }
@@ -388,169 +403,170 @@ CBMSol CBMProblem::oneBlockSearch(CBMSol& s, vector<int> lines) {
     return s;
 }
 
+// Randomly moves one element from one block to inside another (used as a neighbourhood move).
 CBMSol CBMProblem::oneBlockMovement(CBMSol& s) {
-    uniform_int_distribution<> distL(0, this->l - 1);
-    int maxTries = 10;
-    int li = distL(this->mersenne_engine);
-    vector<pair<int, int>> oneBlocks = this->findOneBlocks(s, li);
+    uniform_int_distribution<> rowDist(0, this->l - 1);
+    const int maxAttempts = 10;
 
-    while(maxTries-- > 0 && oneBlocks.size() < 2) {
-        li = distL(this->mersenne_engine);
-        oneBlocks = this->findOneBlocks(s, li);
+    int row = rowDist(this->mersenne_engine);
+    vector<pair<int, int>> blocks = this->findOneBlocks(s, row);
+
+    // Retry until we find a row with at least two blocks to move between
+    for (int attempt = 0; attempt < maxAttempts && blocks.size() < 2; attempt++) {
+        row = rowDist(this->mersenne_engine);
+        blocks = this->findOneBlocks(s, row);
     }
-    if(oneBlocks.size() < 2)
-        return s;
+    if (blocks.size() < 2) return s;
 
-    vector<int> indices(oneBlocks.size());
+    // Randomly pick two distinct blocks
+    vector<int> indices(blocks.size());
     iota(indices.begin(), indices.end(), 0);
     shuffle(indices.begin(), indices.end(), this->mersenne_engine);
-    pair<int, int> b1 = oneBlocks[indices[0]];
-    pair<int, int> b2 = oneBlocks[indices[1]];
 
-    moveOneBlockRandomly(s, b1, b2);
-
+    moveOneBlockRandomly(s, blocks[indices[0]], blocks[indices[1]]);
     return s;
 }
 
+// Picks a random element from b1 and reinserts it at a random position inside b2.
 void CBMProblem::moveOneBlockRandomly(CBMSol& s, pair<int, int> b1, pair<int, int> b2) {
-    auto getLeft  = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
-    auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
+    auto leftOf = [&](int i) { return (i > 0) ? s.sol[i - 1] : -1; };
+    auto rightOf = [&](int i) { return (i + 1 < this->c) ? s.sol[i + 1] : -1; };
 
-    uniform_int_distribution<int> distI(b1.first, b1.second);
-    int i = distI(mersenne_engine);
-    uniform_int_distribution<int> distJ(b2.first, b2.second + 1);
-    int j = distJ(mersenne_engine);
+    uniform_int_distribution<int> srcDist(b1.first, b1.second);
+    uniform_int_distribution<int> dstDist(b2.first, b2.second + 1);
+    int from = srcDist(mersenne_engine);
+    int to = dstDist(mersenne_engine);
 
-    int element = s.sol[i];
-    int oL = getLeft(i);
-    int oR = getRight(i);
-    int to = moveHelper(s.sol, i, j);
-    int nL = getLeft(to);
-    int nR = getRight(to);
-    s.mE = {oL, oR, nL, nR, element};
+    int elem = s.sol[from];
+    int origLeft = leftOf(from);
+    int origRight = rightOf(from);
+    int dest = moveHelper(s.sol, from, to);
+    int destLeft = leftOf(dest);
+    int destRight = rightOf(dest);
+
+    s.mE = {origLeft, origRight, destLeft, destRight, elem};
     s.movement = REINSERTION;
-
     this->deltaEval(s);
 }
 
-bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& currBest, pair<int, int> b1, pair<int, int> b2, bool returnAnyway) {
-    auto getLeft = [&](int idx) { return (idx > 0) ? s.sol[idx - 1] : -1; };
-    auto getRight = [&](int idx) { return (idx + 1 < this->c) ? s.sol[idx + 1] : -1; };
-    int currCost = s.cost;
-    vector<int> originalS = s.sol;
+// Tries every (source, destination) pair between two blocks; accepts the first improvement.
+bool CBMProblem::moveOneBlockColumns(CBMSol& s, int& best, pair<int, int> srcBlock, pair<int, int> dstBlock, bool acceptAnyway) {
+    auto leftOf = [&](int i) { return (i > 0) ? s.sol[i - 1] : -1; };
+    auto rightOf = [&](int i) { return (i + 1 < this->c) ? s.sol[i + 1] : -1; };
 
-    for(int i = b1.first ; i <= b1.second ; i++) {
-        for (int j = b2.first; j <= b2.second + 1; ++j) {
-            int element = s.sol[i];
-            int oL = getLeft(i);
-            int oR = getRight(i);
-            int to = moveHelper(s.sol, i, j);
-            int nL = getLeft(to);
-            int nR = getRight(to);
-            s.mE = {oL, oR, nL, nR, element};
+    int savedCost = s.cost;
+    vector<int> savedSol = s.sol;
+
+    for (int i = srcBlock.first; i <= srcBlock.second; i++) {
+        for (int j = dstBlock.first; j <= dstBlock.second + 1; j++) {
+            int elem = s.sol[i];
+            int origLeft = leftOf(i);
+            int origRight = rightOf(i);
+            int dest = moveHelper(s.sol, i, j);
+            int destLeft = leftOf(dest);
+            int destRight = rightOf(dest);
+
+            s.mE = {origLeft, origRight, destLeft, destRight, elem};
             s.movement = REINSERTION;
             this->deltaEval(s);
-            if(currBest > s.cost){
-                currBest = s.cost;
-                return true;
-            } else {
-                if(returnAnyway && i == b1.second && j == b2.second)
-                    return false;
-                s.sol = originalS;
-                s.cost = currCost;
+
+            if (s.cost < best) {
+                best = s.cost;
+                return true;  // first-improvement: accept immediately
             }
+
+            // No improvement — roll back
+            bool isVeryLast = acceptAnyway && (i == srcBlock.second) && (j == dstBlock.second);
+            if (isVeryLast) return false;
+            s.sol = savedSol;
+            s.cost = savedCost;
         }
     }
 
     return false;
 }
 
-vector<pair<int, int>> CBMProblem::findOneBlocks(CBMSol& s, int line) {
-    vector<pair<int, int>> pairs;
-    int start, end;
+// Returns all contiguous runs of 1s in row `row` under the current column permutation.
+vector<pair<int, int>> CBMProblem::findOneBlocks(CBMSol& s, int row) {
+    vector<pair<int, int>> blocks;
 
-    for(int i = 0 ; i < this->c ; i++) {
-        if(this->binaryMatrix[line][s.sol[i]]) {
-            start = i;
-            while(i < this->c && this->binaryMatrix[line][s.sol[i]])
-                i++;
-            end = i - 1;
-            pairs.push_back({start, end});
+    for (int i = 0; i < this->c; i++) {
+        if (this->binaryMatrix[row][s.sol[i]]) {
+            int start = i;
+            while (i < this->c && this->binaryMatrix[row][s.sol[i]]) i++;
+            blocks.push_back({start, i - 1});
         }
     }
 
-    return pairs;
+    return blocks;
 }
 
-void CBMProblem::toTSP(string sufix) {
-    filesystem::path tspPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".tsp");
-    filesystem::path parPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".par");
-    ofstream tsp(tspPath);
-    ofstream par(parPath);
-    if (!tsp || !par) {
-        throw runtime_error("Error creating TSP/PAR files");
-    }
+// ─────────────────────────────────────────────
+//  LKH interface
+// ─────────────────────────────────────────────
 
-    tsp << "NAME : " << this->instanceName << "\n";
-    tsp << "TYPE : TSP\n";
-    tsp << "DIMENSION : " << this->c + 1 << "\n";
-    tsp << "EDGE_WEIGHT_TYPE : EXPLICIT\n";
-    tsp << "EDGE_WEIGHT_FORMAT : FULL_MATRIX\n";
-    tsp << "EDGE_WEIGHT_SECTION\n";
+// Writes the CBM instance as a TSP FULL_MATRIX problem that LKH can read.
+void CBMProblem::toTSP(string suffix) {
+    filesystem::path tspPath = this->currPath / "instances" / "tsp" / (this->instanceName + suffix + ".tsp");
+    filesystem::path parPath = this->currPath / "instances" / "tsp" / (this->instanceName + suffix + ".par");
+
+    ofstream tsp(tspPath), par(parPath);
+    if (!tsp || !par) throw runtime_error("Error creating TSP/PAR files");
+
+    tsp << "NAME : " << this->instanceName << "\n"
+        << "TYPE : TSP\n"
+        << "DIMENSION : " << this->c + 1 << "\n"
+        << "EDGE_WEIGHT_TYPE : EXPLICIT\n"
+        << "EDGE_WEIGHT_FORMAT : FULL_MATRIX\n"
+        << "EDGE_WEIGHT_SECTION\n";
 
     for (int i = 0; i <= this->c; ++i) {
-        for (int j = 0; j <= this->c; ++j) {
-            tsp << this->tspMatrix[i][j] << (j == this->c - 1 ? "\n" : " ");
-        }
+        for (int j = 0; j <= this->c; ++j) tsp << this->tspMatrix[i][j] << (j == this->c - 1 ? "\n" : " ");
     }
     tsp << "EOF\n";
 
-    par << "PROBLEM_FILE = " << tspPath.string() << "\n";
-    par << "OUTPUT_TOUR_FILE = " << (this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".sol")).string() << "\n";
-    par << "RUNS = 1\n";
-    par << "INITIAL_TOUR_FILE = " << (this->currPath / "instances" / "tsp" / (this->instanceName + sufix + "_initial_.tour")).string() << endl;
-    par << "TIME_LIMIT = " << this->lkhMaxTime << endl;
+    string solFile = (this->currPath / "instances" / "tsp" / (this->instanceName + suffix + ".sol")).string();
+    string initialTour = (this->currPath / "instances" / "tsp" / (this->instanceName + suffix + "_initial_.tour")).string();
+
+    par << "PROBLEM_FILE = " << tspPath.string() << "\n"
+        << "OUTPUT_TOUR_FILE = " << solFile << "\n"
+        << "RUNS = 1\n"
+        << "INITIAL_TOUR_FILE = " << initialTour << "\n"
+        << "TIME_LIMIT = " << this->lkhMaxTime << "\n";
 }
 
-void CBMProblem::runLKH(string sufix) {
-    filesystem::path parPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".par");
-    if (!fs::exists(this->lkhPath)) {
-        throw runtime_error("LKH executable not found: " + lkhPath.string());
-    }
-    if (!fs::exists(parPath)) {
-        throw runtime_error("PAR file not found: " + parPath.string());
-    }
+// Writes a greedy initial tour file that LKH uses as its starting point.
+void CBMProblem::initialTour(string suffix) {
+    filesystem::path tourPath = this->currPath / "instances" / "tsp" / (this->instanceName + suffix + "_initial_.tour");
+    ofstream tour(tourPath);
+    if (!tour) throw runtime_error("Error creating TOUR file");
+
+    CBMSol s = this->greedyConstruction();
+    tour << "TOUR_SECTION\n"
+         << "1\n";
+    for (int i = 0; i < this->c; i++) tour << s.sol[i] + 2 << "\n";  // +2: shift from 0-indexed to TSP node numbering (depot = 1)
+    tour << "-1\nEOF";
+}
+
+// Invokes the LKH binary on the generated parameter file.
+void CBMProblem::runLKH(string suffix) {
+    filesystem::path parPath = this->currPath / "instances" / "tsp" / (this->instanceName + suffix + ".par");
+
+    if (!fs::exists(this->lkhPath)) throw runtime_error("LKH executable not found: " + lkhPath.string());
+    if (!fs::exists(parPath)) throw runtime_error("PAR file not found: " + parPath.string());
 
     string command = lkhPath.string() + " " + parPath.string() + " > /dev/null 2>&1";
-
     int ret = system(command.c_str());
-    if (ret != 0) {
-        cerr << "LKH returned error code: " << ret << endl;
-    }
+    if (ret != 0) cerr << "LKH returned error code: " << ret << endl;
 }
 
-void CBMProblem::initialTour(string sufix) {
-    filesystem::path inputTourPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + "_initial_.tour");
-    ofstream tour(inputTourPath);
-    if (!tour) {
-        throw runtime_error("Error creating TOUR file");
-    }
-    tour << "TOUR_SECTION" << endl;
-    CBMSol s = this->greedyConstruction();
-    tour << "1" << endl;
-    for(int i = 0 ; i < this->c ; i++)
-        tour << s.sol[i] + 2 << endl;
-    tour << "-1" << endl << "EOF";
-}
+// Reads the LKH output tour and converts it back to a 0-indexed column permutation.
+vector<int> CBMProblem::fromTSP(string suffix) {
+    filesystem::path solPath = this->lkhCache ? this->currPath / "instances" / "tsp" / "cache" / (this->instanceName + suffix + ".sol")
+                                              : this->currPath / "instances" / "tsp" / (this->instanceName + suffix + ".sol");
 
-vector<int> CBMProblem::fromTSP(string sufix) {
-    filesystem::path solPath = this->currPath / "instances" / "tsp" / (this->instanceName + sufix + ".sol");
-    if(this->lkhCache)
-        solPath = this->currPath / "instances" / "tsp" / "cache" / (this->instanceName + sufix + ".sol");
     ifstream sol(solPath);
-    if (!sol) {
-        throw runtime_error("Error opening solution file: " + solPath.string());
-    }
+    if (!sol) throw runtime_error("Error opening solution file: " + solPath.string());
 
     vector<int> tour;
     string line;
@@ -558,26 +574,37 @@ vector<int> CBMProblem::fromTSP(string sufix) {
 
     while (getline(sol, line)) {
         if (!inTourSection) {
-            if (line == "TOUR_SECTION") {
-                inTourSection = true;
+            if (line == "TOUR_SECTION") inTourSection = true;
+            continue;
+        }
+        istringstream iss(line);
+        int node;
+        while (iss >> node) {
+            if (node == -1) {
+                inTourSection = false;
+                break;
             }
-        } else {
-            istringstream iss(line);
-            int node;
-            while (iss >> node) {
-                if (node == -1) {
-                    inTourSection = false;
-                    break;
-                }
-                tour.push_back(node - 2);
-            }
+            tour.push_back(node - 2);  // -2: undo TSP node numbering, depot (node 1) becomes -1
         }
     }
-    auto it = find(tour.begin(), tour.end(), -1);
-    if (it != tour.end()) {
-        rotate(tour.begin(), it, tour.end());
+
+    // If the depot (-1) ended up inside the tour, rotate it to the front and remove it
+    auto depotIt = find(tour.begin(), tour.end(), -1);
+    if (depotIt != tour.end()) {
+        rotate(tour.begin(), depotIt, tour.end());
         tour.erase(tour.begin());
     }
+
     return tour;
 }
 
+// ─────────────────────────────────────────────
+//  Debug
+// ─────────────────────────────────────────────
+
+void CBMProblem::printS(CBMSol& s) {
+    for (int row = 0; row < this->l; row++) {
+        for (int col = 0; col < this->c; col++) cout << this->binaryMatrix[row][s.sol[col]] << " ";
+        cout << "\n";
+    }
+}

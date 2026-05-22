@@ -5,18 +5,9 @@
 
 using namespace std;
 
-enum Movement {
-    REINSERTION,
-    TWOOPT,
-    SWAP,
-    ONEBLOCKM
-};
+enum Movement { REINSERTION, TWOOPT, SWAP, ONEBLOCKM };
 
-enum Construction {
-    GREEDY,
-    LKH,
-    ONEBLOCK
-};
+enum Construction { GREEDY, LKH, ONEBLOCK };
 
 struct CBMSol : public solution {
     vector<int> sol;
@@ -42,14 +33,12 @@ inline ostream& operator<<(ostream& os, const CBMSol& s) {
 
 template <typename T>
 int moveHelper(std::vector<T>& v, int from, int to) {
-    if (from < 0 || from >= v.size() || to < 0 || to > v.size()) 
-        return -1;
+    if (from < 0 || from >= v.size() || to < 0 || to > v.size()) return -1;
 
     T value = v[from];
     v.erase(v.begin() + from);
 
-    if (from < to) 
-        to--;
+    if (from < to) to--;
 
     v.insert(v.begin() + to, value);
 

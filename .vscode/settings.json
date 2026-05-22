@@ -92,5 +92,5 @@
         "variant": "cpp"
     },
     "editor.wordWrap": "off",
-    "editor.formatOnSave": false
+    "editor.formatOnSave": true
 }
