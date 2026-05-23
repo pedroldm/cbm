@@ -5,15 +5,16 @@
             "name": "(gdb) Launch with File Path",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/pedrowsl/cbm/main_debug",
+            "program": "/home/pdamasceno/cbm/src/CBMLKH/main_debug",
             "args": [
-                "--filePath=/home/pedrowsl/cbm/instances/h5"
+                "--instancePath=/home/pdamasceno/cbm/instances/a1"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -26,6 +27,6 @@
                     "ignoreFailures": true
                 }
             ]
-        },
+        }
     ]
 }

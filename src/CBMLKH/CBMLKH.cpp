@@ -1,12 +1,37 @@
 #include "CBMLKH.hpp"
 
-CBMLKH::CBMLKH(int l, int c, int threads) : l(l), c(c) {
+CBMLKH::CBMLKH(const Config& cfg)
+    : filePath(cfg.instancePath),
+      threads(cfg.threads),
+      l(0),
+      c(0),
+      rng_device(),
+      mersenne_engine(rng_device()),
+      constructionBias(cfg.constructionBias) {
+    ifstream input(filePath);
+    if (!input.is_open()) throw runtime_error("Error opening file: " + filePath);
+
+    input >> this->l >> this->c;
+
+    this->binaryMatrix.resize(this->l);
+    for (int row = 0; row < this->l; row++) {
+        this->binaryMatrix[row].resize(this->c, 0);
+    }
     this->diffMatrix.resize(c, vector<int>(c, 0));
     this->tspMatrix.resize(c + 1, vector<int>(c + 1, 0));
     this->onesToZeros.resize(c, vector<int>(c, 0));
     this->zerosToOnes.resize(c, vector<int>(c, 0));
     this->onesToOnes.resize(c, vector<int>(c, 0));
     this->threads = threads;
+
+    int nonZeroCount, col;
+    for (int row = 0; row < this->l; row++) {
+        input >> nonZeroCount;
+        for (int j = 0; j < nonZeroCount; j++) {
+            input >> col;
+            this->binaryMatrix[row][col - 1] = true;
+        }
+    }
 
     this->computeMatrixes();
 }
@@ -19,7 +44,6 @@ int CBMLKH::deltaEval(Solution& s) {
     };
 
     auto sharedOnes = [&](int i, int j) -> int { return (i == -1 || j == -1) ? 0 : this->onesToOnes[i][j]; };
-    auto edgeDiff = [&](int i, int j) -> int { return (i != -1 && j != -1) ? this->diffMatrix[i][j] : 0; };
 
     switch (s.movement) {
         case REINSERTION: {
@@ -47,16 +71,61 @@ int CBMLKH::deltaEval(Solution& s) {
 }
 
 int CBMLKH::completeEval(Solution& s) {
-    s.cost = 0;
+    s.cost = this->tspMatrix[0][s.sol[0] + 1];
 
-    for (int row = 0; row < this->l; row++)
-        if (this->binaryMatrix[row][s.sol[0]]) s.cost++;
-
-    for (int col = 1; col < this->c; col++)
-        for (int row = 0; row < this->l; row++)
-            if (this->binaryMatrix[row][s.sol[col]] && !this->binaryMatrix[row][s.sol[col - 1]]) s.cost++;
+    for (int col = 1; col < this->c; col++) {
+        s.cost += this->zerosToOnes[s.sol[col - 1]][s.sol[col]];
+    }
 
     return s.cost;
+}
+
+Solution CBMLKH::greedyConstruction() {
+    uniform_int_distribution<> colDist(0, this->c - 1);
+    unordered_set<int> remaining;
+    Solution s;
+
+    s.cost = 0;
+    s.sol.resize(this->c);
+    int current = colDist(this->mersenne_engine);
+
+    for (int i = 0; i < this->c; i++) remaining.insert(i);
+
+    int pos = 0;
+    remaining.erase(current);
+    s.sol[pos++] = current;
+
+    while (!remaining.empty()) {
+        current = this->nextInsertion(current, remaining);
+        s.sol[pos++] = current;
+        remaining.erase(current);
+    }
+
+    return s;
+}
+
+int CBMLKH::nextInsertion(int& current, unordered_set<int>& remaining) {
+    vector<tuple<int, int>> candidates;
+    candidates.reserve(remaining.size());
+    for (int i : remaining) candidates.push_back({this->l - this->diffMatrix[current][i], i});
+
+    sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) { return get<0>(a) > get<0>(b); });
+
+    vector<double> weights(candidates.size());
+    for (size_t rank = 0; rank < candidates.size(); ++rank) weights[rank] = 1.0 / pow(rank + 1, this->constructionBias);
+
+    double totalWeight = accumulate(weights.begin(), weights.end(), 0.0);
+    uniform_real_distribution<double> dist(0.0, totalWeight);
+    double roll = dist(this->mersenne_engine);
+    double cumulative = 0.0;
+    size_t chosen = 0;
+
+    for (; chosen < weights.size(); ++chosen) {
+        cumulative += weights[chosen];
+        if (roll < cumulative) break;
+    }
+
+    return get<1>(candidates[chosen]);
 }
 
 void CBMLKH::computeMatrixes() {
@@ -92,4 +161,28 @@ void CBMLKH::computeMatrixes() {
         this->tspMatrix[0][i] = onesCount;
         this->tspMatrix[i][0] = onesCount;
     }
+}
+
+vector<int> CBMLKH::count1BlocksPerColumn(const Solution& s) {
+    vector<int> blockCounts(this->c, 0);
+
+    for (int pos = 0; pos < this->c; pos++) {
+        int colIdx = s.sol[pos];
+        int blocks = 0;
+        bool inBlock = false;
+
+        for (int row = 0; row < this->l; row++) {
+            if (this->binaryMatrix[row][colIdx]) {
+                if (!inBlock) {
+                    blocks++;
+                    inBlock = true;
+                }
+            } else {
+                inBlock = false;
+            }
+        }
+        blockCounts[pos] = blocks;
+    }
+
+    return blockCounts;
 }
