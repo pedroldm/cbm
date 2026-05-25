@@ -1,5 +1,11 @@
 #include "CBMLKH.hpp"
 
+#include <filesystem>
+#include <iostream>
+#include <sstream>
+
+namespace fs = std::filesystem;
+
 CBMLKH::CBMLKH(const Config& cfg)
     : filePath(cfg.instancePath),
       threads(cfg.threads),
@@ -22,7 +28,15 @@ CBMLKH::CBMLKH(const Config& cfg)
     this->onesToZeros.resize(c, vector<int>(c, 0));
     this->zerosToOnes.resize(c, vector<int>(c, 0));
     this->onesToOnes.resize(c, vector<int>(c, 0));
+    this->onesSum.resize(c, 0);
     this->threads = threads;
+
+    auto pos = filePath.find_last_of("/\\");
+    this->instanceName = (pos == string::npos) ? filePath : filePath.substr(pos + 1);
+    this->currPath = fs::current_path();
+    this->lkhPath = this->currPath / "src" / "LKH3" / "LKH";
+    this->lkhMaxTime = cfg.lkhMaxTime;
+    this->lkhCache = false;
 
     int nonZeroCount, col;
     for (int row = 0; row < this->l; row++) {
@@ -34,6 +48,116 @@ CBMLKH::CBMLKH(const Config& cfg)
     }
 
     this->computeMatrixes();
+}
+
+void CBMLKH::toTSP(const string& suffix, const vector<int>& subset) {
+    fs::path tspPath = fs::path("/tmp") / (this->instanceName + suffix + ".tsp");
+    fs::path parPath = fs::path("/tmp") / (this->instanceName + suffix + ".par");
+
+    ofstream tsp(tspPath), par(parPath);
+    if (!tsp || !par) throw runtime_error("Error creating TSP/PAR files");
+
+    int dim = subset.empty() ? this->c : static_cast<int>(subset.size());
+
+    tsp << "NAME : " << this->instanceName << "\n"
+        << "TYPE : TSP\n"
+        << "DIMENSION : " << dim + 1 << "\n"
+        << "EDGE_WEIGHT_TYPE : EXPLICIT\n"
+        << "EDGE_WEIGHT_FORMAT : FULL_MATRIX\n"
+        << "EDGE_WEIGHT_SECTION\n";
+
+    for (int i = 0; i <= dim; ++i) {
+        for (int j = 0; j <= dim; ++j) {
+            int val = 0;
+            int orig_i = (i == 0) ? -1 : (subset.empty() ? (i - 1) : subset[i - 1]);
+            int orig_j = (j == 0) ? -1 : (subset.empty() ? (j - 1) : subset[j - 1]);
+            if (orig_i == -1 && orig_j == -1)
+                val = 0;
+            else if (orig_i == -1)
+                val = this->onesSum[orig_j];
+            else if (orig_j == -1)
+                val = this->onesSum[orig_i];
+            else
+                val = this->diffMatrix[orig_i][orig_j];
+            tsp << val << (j == dim ? "\n" : " ");
+        }
+    }
+    tsp << "EOF\n";
+
+    string solFile = (fs::path("/tmp") / (this->instanceName + suffix + ".sol")).string();
+    string initialTour = (fs::path("/tmp") / (this->instanceName + suffix + "_initial_.tour")).string();
+
+    par << "PROBLEM_FILE = " << tspPath.string() << "\n"
+        << "OUTPUT_TOUR_FILE = " << solFile << "\n"
+        << "RUNS = 1\n"
+        << "INITIAL_TOUR_FILE = " << initialTour << "\n"
+        << "TIME_LIMIT = " << this->lkhMaxTime << "\n";
+}
+
+void CBMLKH::initialTour(const string& suffix, const vector<int>& subset) {
+    fs::path tourPath = fs::path("/tmp") / (this->instanceName + suffix + "_initial_.tour");
+    ofstream tour(tourPath);
+    if (!tour) throw runtime_error("Error creating TOUR file");
+
+    int dim = subset.empty() ? this->c : static_cast<int>(subset.size());
+
+    tour << "TOUR_SECTION\n"
+         << "1\n";
+    for (int i = 0; i < dim; i++) tour << (i + 2) << "\n";
+    tour << "-1\nEOF";
+}
+
+void CBMLKH::runLKH(string suffix) {
+    fs::path parPath = fs::path("/tmp") / (this->instanceName + suffix + ".par");
+
+    fs::path lkhExec = fs::path(LKH_EXEC_PATH);
+    if (!fs::exists(lkhExec)) throw runtime_error("LKH executable not found: " + lkhExec.string());
+    if (!fs::exists(parPath)) throw runtime_error("PAR file not found: " + parPath.string());
+
+    string command = lkhExec.string() + " " + parPath.string() + " > /dev/null 2>&1";
+    int ret = system(command.c_str());
+    if (ret != 0) cerr << "LKH returned error code: " << ret << endl;
+}
+
+vector<int> CBMLKH::fromTSP(const string& suffix, const vector<int>& subset) {
+    fs::path solPath = fs::path("/tmp") / (this->instanceName + suffix + ".sol");
+
+    ifstream sol(solPath);
+    if (!sol) throw runtime_error("Error opening solution file: " + solPath.string());
+
+    vector<int> tour;
+    string line;
+    bool inTourSection = false;
+
+    while (getline(sol, line)) {
+        if (!inTourSection) {
+            if (line == "TOUR_SECTION") inTourSection = true;
+            continue;
+        }
+        istringstream iss(line);
+        int node;
+        while (iss >> node) {
+            if (node == -1) {
+                inTourSection = false;
+                break;
+            }
+            int idx = node - 2;
+            if (idx == -1)
+                tour.push_back(-1);
+            else if (subset.empty())
+                tour.push_back(idx);
+            else
+                tour.push_back(subset[idx]);
+        }
+    }
+
+    auto depotIt = find(tour.begin(), tour.end(), -1);
+    if (depotIt != tour.end()) {
+        rotate(tour.begin(), depotIt, tour.end());
+        tour.erase(tour.begin());
+    }
+
+    return tour;
 }
 
 int CBMLKH::deltaEval(Solution& s) {
@@ -87,6 +211,7 @@ Solution CBMLKH::greedyConstruction() {
 
     s.cost = 0;
     s.sol.resize(this->c);
+    s.blocksCount.resize(this->c);
     int current = colDist(this->mersenne_engine);
 
     for (int i = 0; i < this->c; i++) remaining.insert(i);
@@ -160,29 +285,11 @@ void CBMLKH::computeMatrixes() {
             if (binaryMatrix[row][i - 1]) onesCount++;
         this->tspMatrix[0][i] = onesCount;
         this->tspMatrix[i][0] = onesCount;
+        this->onesSum[i - 1] = onesCount;
     }
 }
 
-vector<int> CBMLKH::count1BlocksPerColumn(const Solution& s) {
-    vector<int> blockCounts(this->c, 0);
-
-    for (int pos = 0; pos < this->c; pos++) {
-        int colIdx = s.sol[pos];
-        int blocks = 0;
-        bool inBlock = false;
-
-        for (int row = 0; row < this->l; row++) {
-            if (this->binaryMatrix[row][colIdx]) {
-                if (!inBlock) {
-                    blocks++;
-                    inBlock = true;
-                }
-            } else {
-                inBlock = false;
-            }
-        }
-        blockCounts[pos] = blocks;
-    }
-
-    return blockCounts;
+void CBMLKH::countBlocksPerColumn(Solution& s) {
+    s.blocksCount[0] = this->onesSum[s.sol[0]];
+    for (int i = 1; i < this->c; i++) s.blocksCount[i] = this->zerosToOnes[s.sol[i - 1]][s.sol[i]];
 }

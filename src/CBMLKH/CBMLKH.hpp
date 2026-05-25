@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <random>
 #include <string>
 #include <unordered_set>
@@ -10,6 +12,8 @@
 
 #ifndef CBMLKH_HPP
 #define CBMLKH_HPP
+
+static constexpr const char* LKH_EXEC_PATH = "/home/pdamasceno/cbm/src/LKH3";
 
 using namespace std;
 
@@ -25,6 +29,12 @@ class CBMLKH {
     vector<vector<int>> zerosToOnes;
     vector<vector<int>> onesToOnes;
     vector<vector<int>> tspMatrix;
+    vector<int> onesSum;
+    filesystem::path currPath;
+    filesystem::path lkhPath;
+    string instanceName;
+    int lkhMaxTime;
+    bool lkhCache = false;
 
     random_device rng_device;
     mt19937 mersenne_engine;
@@ -38,7 +48,11 @@ class CBMLKH {
     Solution greedyConstruction();
     int nextInsertion(int& current, unordered_set<int>& remaining);
     void computeMatrixes();
-    vector<int> count1BlocksPerColumn(const Solution& s);
+    void countBlocksPerColumn(Solution& s);
+    void toTSP(const string& suffix = "", const vector<int>& subset = {});
+    void initialTour(const string& suffix = "", const vector<int>& subset = {});
+    void runLKH(string suffix);
+    vector<int> fromTSP(const string& suffix = "", const vector<int>& subset = {});
 };
 
 #endif

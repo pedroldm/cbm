@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "/home/pdamasceno/cbm/src/CBMLKH/main_debug",
             "args": [
-                "--instancePath=/home/pdamasceno/cbm/instances/a1"
+                "--instancePath=/home/pdamasceno/cbm/instances/tests"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

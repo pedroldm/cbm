@@ -2,6 +2,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "CBMLKH.hpp"
 #include "PrintUtil.hpp"
@@ -45,10 +46,31 @@ Config parseArgs(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-    const Config cfg = parseArgs(argc, argv);
-    CBMLKH solver(cfg);
-    Solution s = solver.greedyConstruction();
-    vector<int> d = solver.count1BlocksPerColumn(s);
-    cout << "1-blocks per column: " << d << "\n";
+    Config cfg = parseArgs(argc, argv);
+
+    try {
+        CBMLKH solver(cfg);
+        Solution base = solver.greedyConstruction();
+        base.sol = {0, 1, 2, 3, 4};
+        int subsetSize = 3;
+        vector<int> subset = {0, 1, 2};
+        cout << "Testing LKH on subset of " << subsetSize << " columns...\n";
+        solver.toTSP("_test", subset);
+        solver.initialTour("_test", subset);
+        solver.runLKH("_test");
+        vector<int> result = solver.fromTSP("_test", subset);
+
+        Solution s;
+        s.sol = move(result);
+        solver.completeEval(s);
+
+        cout << "Result tour:";
+        for (int col : s.sol) cout << ' ' << col;
+        cout << "\nCost: " << s.cost << "\n";
+    } catch (const exception& ex) {
+        cerr << "CBMLKH test failed: " << ex.what() << "\n";
+        return 1;
+    }
+
     return 0;
 }
