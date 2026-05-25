@@ -32,7 +32,6 @@ class LKHWrapper {
     void runLKH(string parFile);
     long getExecutionId();
     vector<int> getResultTour(string resultTourFile);
-    map<int, int> makeIndexMap(const vector<int>& slice);
 };
 
 #endif

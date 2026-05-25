@@ -12,7 +12,6 @@ vector<int> LKHWrapper::run(const vector<int>& slice, string instanceName, int m
     string parFile = LKHWrapper::tmpDir + instanceName + "_par_" + to_string(execId) + ".par";
     string resultTourFile = LKHWrapper::tmpDir + instanceName + "_result_tour_" + to_string(execId) + ".tsp";
     string InitialTourFile = LKHWrapper::tmpDir + instanceName + "_initial_tour_" + to_string(execId) + ".tsp";
-    map<int, int> indexMap = makeIndexMap(slice);
 
     writeTSP(slice, instanceName, tspFile, execId);
     writeInitialTour(slice, instanceName, InitialTourFile, execId);

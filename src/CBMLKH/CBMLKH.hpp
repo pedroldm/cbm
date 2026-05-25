@@ -17,6 +17,14 @@ static constexpr const char* LKH_EXEC_PATH = "/home/pdamasceno/cbm/src/LKH3";
 
 using namespace std;
 
+struct DenseSegment {
+    int start;
+    int end;
+    int sum;
+    double avg;
+    double score;
+};
+
 class CBMLKH {
    public:
     string filePath;
@@ -41,7 +49,6 @@ class CBMLKH {
     mt19937 mersenne_engine;
     float constructionBias;
 
-   public:
     CBMLKH(const Config& cfg);
 
     int deltaEval(Solution& s);
@@ -50,6 +57,7 @@ class CBMLKH {
     int nextInsertion(int& current, unordered_set<int>& remaining);
     void computeMatrixes();
     void countBlocksPerColumn(Solution& s);
+    vector<DenseSegment> findDenseSegments(Solution s, int minSize, int maxSize, double minScore);
 };
 
 #endif

@@ -52,10 +52,8 @@ int main(int argc, char* argv[]) {
     try {
         CBMLKH solver(cfg);
         Solution base = solver.greedyConstruction();
-        LKHWrapper LKHWrapper(solver.c, solver.l, solver.tspMatrix);
-        base.sol = LKHWrapper.run(base.sol, "a1", 10);
-        solver.completeEval(base);
-        cout << "Final solution cost: " << base.cost << "\n";
+        solver.countBlocksPerColumn(base);
+        solver.findDenseSegments(base, 2, 10, 5.0);
     } catch (const exception& ex) {
         cerr << "CBMLKH test failed: " << ex.what() << "\n";
         return 1;

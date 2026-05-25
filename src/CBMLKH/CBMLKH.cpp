@@ -183,3 +183,25 @@ void CBMLKH::countBlocksPerColumn(Solution& s) {
     s.blocksCount[0] = this->onesSum[s.sol[0]];
     for (int i = 1; i < this->c; i++) s.blocksCount[i] = this->zerosToOnes[s.sol[i - 1]][s.sol[i]];
 }
+
+vector<DenseSegment> CBMLKH::findDenseSegments(Solution s, int minSize, int maxSize, double minScore) {
+    vector<DenseSegment> segments;
+    vector<int> prefix(s.blocksCount.size() + 1, 0);
+
+    for (int i = 0; i < (int)s.blocksCount.size(); i++) prefix[i + 1] = prefix[i] + s.blocksCount[i];
+    for (int l = 0; l < (int)s.blocksCount.size(); l++) {
+        for (int r = l + minSize - 1; r < (int)s.blocksCount.size() && (r - l + 1) <= maxSize; r++) {
+            int size = r - l + 1;
+            int sum = prefix[r + 1] - prefix[l];
+            double avg = (double)sum / size;
+            double score = avg * size;
+            if (score >= minScore) {
+                segments.push_back({l, r, sum, avg, score});
+            }
+        }
+    }
+
+    sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
+
+    return segments;
+}
