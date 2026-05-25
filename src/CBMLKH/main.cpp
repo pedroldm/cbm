@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "CBMLKH.hpp"
+#include "LKHWrapper.hpp"
 #include "PrintUtil.hpp"
 
 using namespace std;
@@ -51,22 +52,10 @@ int main(int argc, char* argv[]) {
     try {
         CBMLKH solver(cfg);
         Solution base = solver.greedyConstruction();
-        base.sol = {0, 1, 2, 3, 4};
-        int subsetSize = 3;
-        vector<int> subset = {0, 1, 2};
-        cout << "Testing LKH on subset of " << subsetSize << " columns...\n";
-        solver.toTSP("_test", subset);
-        solver.initialTour("_test", subset);
-        solver.runLKH("_test");
-        vector<int> result = solver.fromTSP("_test", subset);
-
-        Solution s;
-        s.sol = move(result);
-        solver.completeEval(s);
-
-        cout << "Result tour:";
-        for (int col : s.sol) cout << ' ' << col;
-        cout << "\nCost: " << s.cost << "\n";
+        LKHWrapper LKHWrapper(solver.c, solver.l, solver.tspMatrix);
+        base.sol = LKHWrapper.run(base.sol, "a1", 10);
+        solver.completeEval(base);
+        cout << "Final solution cost: " << base.cost << "\n";
     } catch (const exception& ex) {
         cerr << "CBMLKH test failed: " << ex.what() << "\n";
         return 1;

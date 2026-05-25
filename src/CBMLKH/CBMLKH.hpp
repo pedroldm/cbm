@@ -18,6 +18,7 @@ static constexpr const char* LKH_EXEC_PATH = "/home/pdamasceno/cbm/src/LKH3";
 using namespace std;
 
 class CBMLKH {
+   public:
     string filePath;
     int threads;
 
@@ -49,10 +50,6 @@ class CBMLKH {
     int nextInsertion(int& current, unordered_set<int>& remaining);
     void computeMatrixes();
     void countBlocksPerColumn(Solution& s);
-    void toTSP(const string& suffix = "", const vector<int>& subset = {});
-    void initialTour(const string& suffix = "", const vector<int>& subset = {});
-    void runLKH(string suffix);
-    vector<int> fromTSP(const string& suffix = "", const vector<int>& subset = {});
 };
 
 #endif
