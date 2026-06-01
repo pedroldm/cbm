@@ -7,8 +7,10 @@ using namespace std;
 
 struct Config {
     string instancePath;
-    int lkhMaxTime = 0;
     int threads = 1;
+    int maxIterations = 1000;
+    int maxTime = 60;
+    int lkhMaxTime = 5;
     float constructionBias = 1.0f;
 };
 

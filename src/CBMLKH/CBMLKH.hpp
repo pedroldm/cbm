@@ -4,11 +4,14 @@
 #include <mutex>
 #include <random>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "Config.hpp"
 #include "Solution.hpp"
+#include "Trajectory.hpp"
+#include "Validator.hpp"
 
 #ifndef CBMLKH_HPP
 #define CBMLKH_HPP
@@ -27,8 +30,8 @@ struct DenseSegment {
 
 class CBMLKH {
    public:
-    string filePath;
-    int threads;
+    Config cfg;
+    Validator validator;
 
     int l, c;
 
@@ -42,7 +45,6 @@ class CBMLKH {
     filesystem::path currPath;
     filesystem::path lkhPath;
     string instanceName;
-    int lkhMaxTime;
     bool lkhCache = false;
 
     random_device rng_device;
@@ -51,6 +53,9 @@ class CBMLKH {
 
     CBMLKH(const Config& cfg);
 
+    void run();
+    Trajectory LKHILS(Solution& initial);
+    Solution ILSNeighbor(Solution s);
     int deltaEval(Solution& s);
     int completeEval(Solution& s);
     Solution greedyConstruction();

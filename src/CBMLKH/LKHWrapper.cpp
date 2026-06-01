@@ -74,12 +74,12 @@ void LKHWrapper::writeTSP(const vector<int>& slice, string instanceName, string 
     out << "EDGE_WEIGHT_SECTION" << endl;
 
     out << tspMatrix[0][0];
-    for (int j = 0; j < slice.size(); j++) out << " " << tspMatrix[0][slice[j] + 1];
+    for (size_t j = 0; j < slice.size(); j++) out << " " << tspMatrix[0][slice[j] + 1];
     out << endl;
 
-    for (int i = 0; i < slice.size(); i++) {
+    for (size_t i = 0; i < slice.size(); i++) {
         out << tspMatrix[slice[i] + 1][0];
-        for (int j = 0; j < slice.size(); j++) {
+        for (size_t j = 0; j < slice.size(); j++) {
             out << " " << tspMatrix[slice[i] + 1][slice[j] + 1];
         }
         out << endl;

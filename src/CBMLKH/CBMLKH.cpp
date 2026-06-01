@@ -6,16 +6,9 @@
 
 namespace fs = std::filesystem;
 
-CBMLKH::CBMLKH(const Config& cfg)
-    : filePath(cfg.instancePath),
-      threads(cfg.threads),
-      l(0),
-      c(0),
-      rng_device(),
-      mersenne_engine(rng_device()),
-      constructionBias(cfg.constructionBias) {
-    ifstream input(filePath);
-    if (!input.is_open()) throw runtime_error("Error opening file: " + filePath);
+CBMLKH::CBMLKH(const Config& cfg) : cfg(cfg), validator(cfg.instancePath), l(0), c(0), rng_device(), mersenne_engine(rng_device()) {
+    ifstream input(cfg.instancePath);
+    if (!input.is_open()) throw runtime_error("Error opening file: " + cfg.instancePath);
 
     input >> this->l >> this->c;
 
@@ -29,13 +22,11 @@ CBMLKH::CBMLKH(const Config& cfg)
     this->zerosToOnes.resize(c, vector<int>(c, 0));
     this->onesToOnes.resize(c, vector<int>(c, 0));
     this->onesSum.resize(c, 0);
-    this->threads = threads;
 
-    auto pos = filePath.find_last_of("/\\");
-    this->instanceName = (pos == string::npos) ? filePath : filePath.substr(pos + 1);
+    auto pos = cfg.instancePath.find_last_of("/\\");
+    this->instanceName = (pos == string::npos) ? cfg.instancePath : cfg.instancePath.substr(pos + 1);
     this->currPath = fs::current_path();
     this->lkhPath = this->currPath / "src" / "LKH3" / "LKH";
-    this->lkhMaxTime = cfg.lkhMaxTime;
     this->lkhCache = false;
 
     int nonZeroCount, col;
@@ -49,6 +40,37 @@ CBMLKH::CBMLKH(const Config& cfg)
 
     this->computeMatrixes();
 }
+
+void CBMLKH::run() {
+    vector<Solution> initialSolutions(this->cfg.threads);
+
+#pragma omp parallel for num_threads(this->cfg.threads)
+    for (int i = 0; i < this->cfg.threads; i++) {
+        initialSolutions[i] = this->greedyConstruction();
+        Trajectory t = this->LKHILS(initialSolutions[i]);
+    }
+}
+
+Trajectory CBMLKH::LKHILS(Solution& initial) {
+    Trajectory trajectory(initial);
+
+    auto start = chrono::steady_clock::now();
+    auto deadline = start + chrono::seconds(cfg.lkhMaxTime);
+
+    for (int i = 0; i < cfg.maxIterations; i++) {
+        auto now = chrono::steady_clock::now();
+        if (now >= deadline) break;
+        Solution neighbor = this->ILSNeighbor(trajectory.currentSolution);
+        if (neighbor.cost < trajectory.bestSolution.cost) {
+            validator.validate(neighbor.sol, neighbor.cost);
+            trajectory.record(neighbor, i, chrono::duration_cast<chrono::milliseconds>(now - start).count());
+        }
+    }
+
+    return trajectory;
+}
+
+Solution CBMLKH::ILSNeighbor(const Solution s) {}
 
 int CBMLKH::deltaEval(Solution& s) {
     auto insertionCost = [&](int L, int R, int e) -> int {
@@ -144,7 +166,7 @@ int CBMLKH::nextInsertion(int& current, unordered_set<int>& remaining) {
 }
 
 void CBMLKH::computeMatrixes() {
-#pragma omp parallel for num_threads(this->threads) collapse(2)
+#pragma omp parallel for num_threads(this->cfg.threads) collapse(2)
     for (int i = 0; i < c; i++) {
         for (int j = 0; j < c; j++) {
             if (i == j) continue;

@@ -5,7 +5,7 @@
 
 using namespace std;
 
-enum Movement { REINSERTION, TWOOPT, SWAP, ONEBLOCKM };
+enum Movement { REINSERTION, TWOOPT, SWAP };
 enum Construction { GREEDY };
 
 class Solution {
