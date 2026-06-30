@@ -137,10 +137,10 @@ class BenchmarkConfig:
     # Pure-LKH parameters.
     lkh: LKHParams = field(default_factory=lambda: LKHParams(time_limit=300))
 
-    # How many LKH instances to solve concurrently. Each LKH process is
-    # single-threaded, so this can safely scale up to the core count. Defaults to
-    # all cores. (CBMLKH is not parallelized at the instance level — it already
-    # uses `threads` internally.)
+    # Parallelism for a *standalone* LKH batch run via ``Benchmark.run(..., workers=N)``
+    # (each LKH process is single-threaded). The interleaved comparison pipeline
+    # runs one solver at a time so LKH and CBMLKH never overlap, so this does NOT
+    # affect ``run_comparison``.
     lkh_workers: int = 4
 
     # CBMLKH parameters (the C++ solver). cbmlkh_binary=None auto-detects.

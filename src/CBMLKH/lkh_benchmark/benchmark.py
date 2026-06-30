@@ -54,28 +54,34 @@ class Benchmark:
 
         if workers == 1:
             for i, name in enumerate(names, start=1):
-                self._process_one(name, i, total, skip_done)
+                self.process_one(name, i, total, skip_done)
         else:
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = [pool.submit(self._process_one, name, i, total, skip_done) for i, name in enumerate(names, start=1)]
+                futures = [pool.submit(self.process_one, name, i, total, skip_done) for i, name in enumerate(names, start=1)]
                 for future in futures:
                     future.result()  # surface any unexpected (non-caught) error
 
         return self.store.load_all()
 
-    def _process_one(self, name: str, i: int, total: int, skip_done: bool) -> None:
+    def process_one(self, name: str, i: int, total: int, skip_done: bool = True) -> None:
+        """Resume-check, solve, persist and log a single instance.
+
+        Public so the interleaved pipeline can drive solvers instance-by-instance
+        (run a1 on every solver, then a2, …) while reusing the same resume,
+        persistence and logging behaviour as a standalone batch ``run``.
+        """
         if skip_done and self.store.is_done(name):
-            self._log(f"[{i}/{total}] skip (already done): {name}")
+            self._log(f"[{i}/{total}] {self.solver.key} skip (already done): {name}")
             return
         try:
             record = self.run_instance(name)
             self.store.save(record)
             self._log(
-                f"[{i}/{total}] done: {name} cost={record.get('cost')} "
+                f"[{i}/{total}] {self.solver.key} done: {name} cost={record.get('cost')} "
                 f"time={record.get('runtimeSec')}s validated={record.get('validated')}"
             )
         except Exception as exc:  # noqa: BLE001 - keep the batch going
-            self._log(f"[{i}/{total}] ERROR on {name}: {exc}")
+            self._log(f"[{i}/{total}] {self.solver.key} ERROR on {name}: {exc}")
             traceback.print_exc()
 
     def run_instance(self, name: str) -> dict:
