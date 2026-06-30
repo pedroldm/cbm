@@ -5,9 +5,9 @@
             "name": "(gdb) Launch with File Path",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/pdamasceno/cbm/src/CBMLKH/main_debug",
+            "program": "/home/pedroldm/MSc/cbm/src/CBMLKH/main_debug",
             "args": [
-                "--instancePath=/home/pdamasceno/cbm/instances/tests"
+                "/home/pedroldm/MSc/cbm/src/CBMLKH/parameters.md"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

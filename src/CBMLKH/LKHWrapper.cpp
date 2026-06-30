@@ -1,6 +1,19 @@
 #include "LKHWrapper.hpp"
 
-LKHWrapper::LKHWrapper(int c, int l, const vector<vector<int>>& tspMatrix) : c(c), l(l), tspMatrix(tspMatrix) {
+#include <algorithm>
+#include <climits>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <random>
+#include <sstream>
+#include <stdexcept>
+
+using namespace std;
+
+namespace fs = std::filesystem;
+
+LKHWrapper::LKHWrapper(const ColumnStore& columns) : columns(columns) {
     if (!fs::exists(tmpDir)) {
         fs::create_directories(tmpDir);
     }
@@ -8,14 +21,12 @@ LKHWrapper::LKHWrapper(int c, int l, const vector<vector<int>>& tspMatrix) : c(c
 
 vector<int> LKHWrapper::run(const vector<int>& slice, string instanceName, int maxTime) {
     long execId = getExecutionId();
-    string tspFile = LKHWrapper::tmpDir + instanceName + "_tsp_" + to_string(execId) + ".tsp";
-    string parFile = LKHWrapper::tmpDir + instanceName + "_par_" + to_string(execId) + ".par";
-    string resultTourFile = LKHWrapper::tmpDir + instanceName + "_result_tour_" + to_string(execId) + ".tsp";
-    string InitialTourFile = LKHWrapper::tmpDir + instanceName + "_initial_tour_" + to_string(execId) + ".tsp";
+    string tspFile = tmpDir + instanceName + "_tsp_" + to_string(execId) + ".tsp";
+    string parFile = tmpDir + instanceName + "_par_" + to_string(execId) + ".par";
+    string resultTourFile = tmpDir + instanceName + "_result_tour_" + to_string(execId) + ".tsp";
 
     writeTSP(slice, instanceName, tspFile, execId);
-    writeInitialTour(slice, instanceName, InitialTourFile, execId);
-    writePar(parFile, tspFile, InitialTourFile, resultTourFile, maxTime);
+    writePar(parFile, tspFile, resultTourFile, maxTime);
     runLKH(parFile);
 
     vector<int> resultTour = getResultTour(resultTourFile);
@@ -27,39 +38,17 @@ vector<int> LKHWrapper::run(const vector<int>& slice, string instanceName, int m
     return mappedTour;
 }
 
-void LKHWrapper::writePar(string parFile, string tspFile, string InitialTourFile, string resultTourFile, int maxTime) {
+void LKHWrapper::writePar(string parFile, string tspFile, string resultTourFile, int maxTime) {
     ofstream out(parFile);
     if (!out.is_open()) throw runtime_error("Error opening file: " + parFile);
 
     out << "PROBLEM_FILE = " << tspFile << endl;
-    out << "INITIAL_TOUR_FILE = " << InitialTourFile << endl;
     out << "TOUR_FILE = " << resultTourFile << endl;
     out << "MOVE_TYPE = 5" << endl;
     out << "PATCHING_C = 3" << endl;
     out << "PATCHING_A = 2" << endl;
     out << "RUNS = 1" << endl;
     out << "TIME_LIMIT = " << maxTime << endl;
-
-    out.close();
-}
-
-void LKHWrapper::writeInitialTour(const vector<int>& slice, string instanceName, string tourFile, long execId) {
-    ofstream out(tourFile);
-    if (!out.is_open()) throw runtime_error("Error opening file: " + tourFile);
-
-    out << "NAME : " << instanceName << "_tour_" << execId << endl;
-    out << "TYPE : TOUR" << endl;
-    out << "DIMENSION : " << slice.size() + 1 << endl;
-    out << "TOUR_SECTION" << endl;
-
-    out << 1 << endl;
-    for (size_t i = 0; i < slice.size(); i++) {
-        out << slice[i] + 2 << endl;
-    }
-    out << -1 << endl;
-    out << "EOF" << endl;
-
-    out.close();
 }
 
 void LKHWrapper::writeTSP(const vector<int>& slice, string instanceName, string tspFile, long execId) {
@@ -73,19 +62,19 @@ void LKHWrapper::writeTSP(const vector<int>& slice, string instanceName, string 
     out << "EDGE_WEIGHT_FORMAT : FULL_MATRIX" << endl;
     out << "EDGE_WEIGHT_SECTION" << endl;
 
-    out << tspMatrix[0][0];
-    for (size_t j = 0; j < slice.size(); j++) out << " " << tspMatrix[0][slice[j] + 1];
+    // Node 0 is a dummy depot: its distance to a column equals that column's
+    // 1-count, which turns the cycle LKH solves into an open Hamiltonian path.
+    out << 0;
+    for (size_t j = 0; j < slice.size(); j++) out << " " << columns.onesCount(slice[j]);
     out << endl;
 
     for (size_t i = 0; i < slice.size(); i++) {
-        out << tspMatrix[slice[i] + 1][0];
+        out << columns.onesCount(slice[i]);
         for (size_t j = 0; j < slice.size(); j++) {
-            out << " " << tspMatrix[slice[i] + 1][slice[j] + 1];
+            out << " " << columns.hamming(slice[i], slice[j]);
         }
         out << endl;
     }
-
-    out.close();
 }
 
 vector<int> LKHWrapper::getResultTour(string resultTourFile) {
@@ -122,9 +111,9 @@ vector<int> LKHWrapper::getResultTour(string resultTourFile) {
 }
 
 void LKHWrapper::runLKH(string parFile) {
-    if (!fs::exists(LKHWrapper::lkhPath)) throw runtime_error("LKH executable not found: " + lkhPath);
+    if (!fs::exists(lkhPath)) throw runtime_error("LKH executable not found: " + lkhPath);
     if (!fs::exists(parFile)) throw runtime_error("PAR file not found: " + parFile);
-    string command = LKHWrapper::lkhPath + " " + parFile + " > /dev/null 2>&1";
+    string command = lkhPath + " " + parFile + " > /dev/null 2>&1";
     int ret = system(command.c_str());
     if (ret != 0) cerr << "LKH returned error code: " << ret << endl;
 }
@@ -134,4 +123,18 @@ long LKHWrapper::getExecutionId() {
     mt19937_64 gen(rd());
     uniform_int_distribution<long> dist(1, LONG_MAX);
     return dist(gen);
+}
+
+void LKHWrapper::clearTmpDir() {
+    if (!fs::exists(tmpDir)) {
+        return;
+    }
+
+    for (const auto& entry : fs::directory_iterator(tmpDir)) {
+        try {
+            fs::remove_all(entry.path());
+        } catch (const fs::filesystem_error& e) {
+            cerr << "Failed to remove " << entry.path() << ": " << e.what() << endl;
+        }
+    }
 }

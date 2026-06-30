@@ -1,0 +1,6 @@
+# Generated benchmark output and solver scratch files
+results/
+_lkh_work/
+_cbmlkh_cfg/
+*.log
+__pycache__/

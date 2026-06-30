@@ -11,7 +11,7 @@ CXXFLAGS_DEBUG = -fopenmp -Wall -Wextra -std=c++17 -g
 CXXFLAGS_PRD = -fopenmp -std=c++17 -O3 -march=native
 
 # Source files
-SRCS = ArgsUtil.cpp Validator.cpp LKHWrapper.cpp CBMLKH.cpp Solution.cpp main.cpp
+SRCS = ArgsUtil.cpp Validator.cpp Trajectory.cpp LKHWrapper.cpp CBMLKH.cpp main.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
@@ -19,7 +19,7 @@ OBJS_DEBUG = $(SRCS:.cpp=.debug.o)
 OBJS_PRD = $(SRCS:.cpp=.prd.o)
 
 # Header files
-HEADERS = ArgsUtil.hpp Validator.hpp LKHWrapper.hpp CBMLKH.hpp Solution.hpp
+HEADERS = ArgsUtil.hpp Config.hpp ColumnStore.hpp LKHCache.hpp Validator.hpp Trajectory.hpp LKHWrapper.hpp CBMLKH.hpp Solution.hpp PrintUtil.hpp Metrics.hpp ../IO/json.hpp
 
 # Target executable
 TARGET = main

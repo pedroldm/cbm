@@ -1,26 +1,13 @@
-#ifndef ARGSUTIL_HPP
-#define ARGSUTIL_HPP
+#ifndef ARGS_UTIL_HPP
+#define ARGS_UTIL_HPP
 
-#include <sstream>
-#include <stdexcept>
 #include <string>
 
-#include "CBMLKH.hpp"
+#include "Config.hpp"
 
 class ArgsUtil {
-   private:
-    static std::string stripPrefix(const std::string& arg, const std::string& prefix);
-
-    template <typename T>
-    static T parseValue(const std::string& val) {
-        std::istringstream ss(val);
-        T result;
-        ss >> result;
-        return result;
-    }
-
    public:
-    static Config parseArgs(int argc, char* argv[]);
+    static Config parseConfigFile(const std::string& path);
 };
 
 #endif

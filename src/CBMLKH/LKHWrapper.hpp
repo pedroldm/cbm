@@ -1,37 +1,26 @@
 #ifndef LKHWrapper_HPP
 #define LKHWrapper_HPP
 
-#include <algorithm>
-#include <climits>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <map>
-#include <random>
-#include <set>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
-using namespace std;
-namespace fs = std::filesystem;
+#include "ColumnStore.hpp"
 
 class LKHWrapper {
-    inline static string lkhPath = "/home/pedroldm/MSc/cbm/src/LKH3/LKH";
-    inline static string tmpDir = "/tmp/LKH/";
+    inline static std::string lkhPath = "/home/pedroldm/MSc/cbm/src/LKH3/LKH";
+    inline static std::string tmpDir = "/tmp/LKH/";
 
-    int c, l;
-    vector<vector<int>> tspMatrix;
+    const ColumnStore& columns;
 
    public:
-    LKHWrapper(int c, int l, const vector<vector<int>>& tspMatrix);
-    vector<int> run(const vector<int>& slice, string instanceName, int maxTime);
-    void writeTSP(const vector<int>& slice, string instanceName, string tspFile, long execId);
-    void writeInitialTour(const vector<int>& slice, string instanceName, string tourFile, long execId);
-    void writePar(string parFile, string tspFile, string InitialTourFile, string resultTourFile, int maxTime);
-    void runLKH(string parFile);
+    explicit LKHWrapper(const ColumnStore& columns);
+    std::vector<int> run(const std::vector<int>& slice, std::string instanceName, int maxTime);
+    void writeTSP(const std::vector<int>& slice, std::string instanceName, std::string tspFile, long execId);
+    static void clearTmpDir();
+    void writePar(std::string parFile, std::string tspFile, std::string resultTourFile, int maxTime);
+    void runLKH(std::string parFile);
     long getExecutionId();
-    vector<int> getResultTour(string resultTourFile);
+    std::vector<int> getResultTour(std::string resultTourFile);
 };
 
 #endif

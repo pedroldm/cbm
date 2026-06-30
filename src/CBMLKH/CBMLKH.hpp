@@ -1,30 +1,22 @@
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
-#include <mutex>
-#include <random>
+#ifndef CBMLKH_HPP
+#define CBMLKH_HPP
+
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include "ColumnStore.hpp"
 #include "Config.hpp"
+#include "LKHCache.hpp"
+#include "LKHWrapper.hpp"
 #include "Solution.hpp"
 #include "Trajectory.hpp"
 #include "Validator.hpp"
 
-#ifndef CBMLKH_HPP
-#define CBMLKH_HPP
-
-static constexpr const char* LKH_EXEC_PATH = "/home/pdamasceno/cbm/src/LKH3";
-
-using namespace std;
-
-struct DenseSegment {
+struct CandidateRegion {
     int start;
     int end;
-    int sum;
-    double avg;
     double score;
 };
 
@@ -32,37 +24,36 @@ class CBMLKH {
    public:
     Config cfg;
     Validator validator;
+    ColumnStore columnStore;
 
-    int l, c;
+    int rows;  // number of matrix rows (l)
+    int cols;  // number of columns / TSP cities (c)
+    std::string instanceName;
 
-    vector<vector<bool>> binaryMatrix;
-    vector<vector<int>> diffMatrix;
-    vector<vector<int>> onesToZeros;
-    vector<vector<int>> zerosToOnes;
-    vector<vector<int>> onesToOnes;
-    vector<vector<int>> tspMatrix;
-    vector<int> onesSum;
-    filesystem::path currPath;
-    filesystem::path lkhPath;
-    string instanceName;
-    bool lkhCache = false;
+    CBMLKH(const Config& cfg, std::shared_ptr<LKHCache> cache);
 
-    random_device rng_device;
-    mt19937 mersenne_engine;
-    float constructionBias;
-
-    CBMLKH(const Config& cfg);
-
-    void run();
+    std::vector<Trajectory> run();
     Trajectory LKHILS(Solution& initial);
-    Solution ILSNeighbor(Solution s);
-    int deltaEval(Solution& s);
+    Solution ILSNeighbor(const Solution& s, const AdaptiveParameters& adaptive, Metrics& metrics);
+    CandidateRegion choosePeakRegion(Solution& s, const AdaptiveParameters& adaptive);
+    CandidateRegion chooseIntervalRegion(Solution& s, const AdaptiveParameters& adaptive);
     int completeEval(Solution& s);
     Solution greedyConstruction();
-    int nextInsertion(int& current, unordered_set<int>& remaining);
-    void computeMatrixes();
-    void countBlocksPerColumn(Solution& s);
-    vector<DenseSegment> findDenseSegments(Solution s, int minSize, int maxSize, double minScore);
+    int nextInsertion(int current, std::unordered_set<int>& remaining);
+    int countBlocksPerColumn(Solution& s, int start = 0, int end = -1);
+    std::vector<CandidateRegion> findPeakColumns(Solution& s, const AdaptiveParameters& adaptive);
+    std::vector<CandidateRegion> findDenseSegments(Solution& s, const AdaptiveParameters& adaptive);
+    CandidateRegion chooseMergeRegion(Solution& s, const AdaptiveParameters& adaptive);
+    void applyLKH(Solution& s, const CandidateRegion& cr, Metrics& metrics);
+    void reinsertBlock(Solution& s, const CandidateRegion& cr, const std::vector<int>& block);
+
+   private:
+    // Rank-based roulette: returns an index in [0, count) where rank r is
+    // weighted by 1 / (r + 1)^neighborBias (lower-ranked candidates favored).
+    std::size_t sampleRankIndex(std::size_t count, double neighborBias);
+
+    LKHWrapper lkhWrapper;
+    std::shared_ptr<LKHCache> lkhCache;
 };
 
-#endif
+#endif  // CBMLKH_HPP
