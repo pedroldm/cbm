@@ -25,8 +25,8 @@ For finer control you can still drive a single solver directly::
 
 from .benchmark import Benchmark, discover_instances
 from .config import (
-    DEFAULT_CBMLKH_CONFIG,
-    DEFAULT_LKH_PATH,
+    CBMLKH_CONFIG,
+    LKH_PATH,
     BenchmarkConfig,
     LKHParams,
 )
@@ -47,12 +47,12 @@ __all__ = [
     "Solver",
     "PureLKHSolver",
     "CBMLKHSolver",
-    "DEFAULT_CBMLKH_CONFIG",
+    "CBMLKH_CONFIG",
     "find_cbmlkh_binary",
     "CBMInstance",
     "LKHParams",
     "LKHRunner",
-    "DEFAULT_LKH_PATH",
+    "LKH_PATH",
     "ResultStore",
     "TSPConverter",
     "SolutionValidator",

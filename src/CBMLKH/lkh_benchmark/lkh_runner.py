@@ -13,11 +13,11 @@ import time
 import uuid
 from pathlib import Path
 
-from .config import DEFAULT_LKH_PATH, LKHParams  # re-exported for backwards compatibility
+from .config import LKH_PATH, LKHParams  # re-exported for convenience
 from .instance import CBMInstance
 from .tsp_converter import TSPConverter
 
-__all__ = ["LKHRunner", "LKHParams", "DEFAULT_LKH_PATH"]
+__all__ = ["LKHRunner", "LKHParams", "LKH_PATH"]
 
 
 class LKHRunner:

@@ -20,11 +20,11 @@ import time
 import uuid
 from pathlib import Path
 
-from ..config import CBMLKH_BINARY_CANDIDATES, CBMLKH_DIR, CBMLKH_WORK_DIRNAME, DEFAULT_CBMLKH_CONFIG
+from ..config import CBMLKH_BINARY_CANDIDATES, CBMLKH_CONFIG, CBMLKH_DIR, CBMLKH_WORK_DIRNAME
 from ..instance import CBMInstance
 from .base import Solver
 
-__all__ = ["CBMLKHSolver", "find_cbmlkh_binary", "DEFAULT_CBMLKH_CONFIG"]
+__all__ = ["CBMLKHSolver", "find_cbmlkh_binary", "CBMLKH_CONFIG"]
 
 
 def find_cbmlkh_binary() -> str:
@@ -48,7 +48,7 @@ class CBMLKHSolver(Solver):
         timeout: float | None = None,
     ) -> None:
         # instancePath is injected per-instance; keep it out of the base config.
-        self.config = {k: v for k, v in (config or DEFAULT_CBMLKH_CONFIG).items() if k != "instancePath"}
+        self.config = {k: v for k, v in (config if config is not None else CBMLKH_CONFIG).items() if k != "instancePath"}
         self.binary_path = binary_path or find_cbmlkh_binary()
         self.work_dir = Path(work_dir) if work_dir else CBMLKH_DIR / CBMLKH_WORK_DIRNAME
         self.work_dir.mkdir(parents=True, exist_ok=True)
