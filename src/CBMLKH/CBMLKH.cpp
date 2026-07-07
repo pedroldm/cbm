@@ -151,6 +151,8 @@ Solution CBMLKH::ILSNeighbor(const Solution& s, const AdaptiveParameters& adapti
 }
 
 void CBMLKH::applyLKH(Solution& s, const CandidateRegion& cr, Metrics& metrics) {
+    auto lkhStart = chrono::steady_clock::now();
+
     vector<int> subsegment(s.sol.begin() + cr.start, s.sol.begin() + cr.end + 1);
 
     metrics.recordBlockSize(static_cast<int>(subsegment.size()));
@@ -162,6 +164,8 @@ void CBMLKH::applyLKH(Solution& s, const CandidateRegion& cr, Metrics& metrics) 
         lkhCache->put(subsegment, lkhSolution);
         metrics.lkhCacheMisses++;
     }
+
+    metrics.lkhTimeMs += chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - lkhStart).count();
 
     // Best reinsertion: instead of writing the optimized block back into its
     // original slot, search for the position whose neighbors integrate best.
@@ -189,6 +193,12 @@ void CBMLKH::applyLKH(Solution& s, const CandidateRegion& cr, Metrics& metrics) 
 void CBMLKH::reinsertBlock(Solution& s, const CandidateRegion& cr, const vector<int>& block) {
     int blockLen = static_cast<int>(block.size());
 
+    // --- Delta evaluation setup (must read s.sol before it is rebuilt below) ---
+    // Internal seam cost of the block in its ORIGINAL order (as it currently sits
+    // in s.sol). Needed to derive restFullCost from the old cost.
+    int blockOrigInternal = 0;
+    for (int i = cr.start + 1; i <= cr.end; i++) blockOrigInternal += columnStore.zerosToOnes(s.sol[i - 1], s.sol[i]);
+
     // Sequence with the block carved out.
     vector<int> rest;
     rest.reserve(s.sol.size() - blockLen);
@@ -200,6 +210,28 @@ void CBMLKH::reinsertBlock(Solution& s, const CandidateRegion& cr, const vector<
         completeEval(s);
         return;
     }
+
+    // restFullCost: cost of `rest` as a standalone solution, derived in O(1) (plus
+    // the O(blockLen) blockOrigInternal above) from the old cost s.cost by removing
+    // the carved block's contributions and rejoining the A|C seam. This is the
+    // delta-eval counterpart of a full O(cols) rescan of `rest`.
+    bool hasLeft = cr.start > 0;        // a column precedes the block (prefix A nonempty)
+    bool hasRight = cr.end < cols - 1;  // a column follows the block (suffix C nonempty)
+    int leftContribution = hasLeft ? columnStore.zerosToOnes(s.sol[cr.start - 1], s.sol[cr.start])
+                                   : columnStore.onesCount(s.sol[cr.start]);  // block was the prefix -> head term
+    int rightContribution = hasRight ? columnStore.zerosToOnes(s.sol[cr.end], s.sol[cr.end + 1]) : 0;
+    int joinContribution;
+    if (hasLeft && hasRight)
+        joinContribution = columnStore.zerosToOnes(s.sol[cr.start - 1], s.sol[cr.end + 1]);  // A now meets C directly
+    else if (!hasLeft && hasRight)
+        joinContribution = columnStore.onesCount(s.sol[cr.end + 1]);  // rest[0] becomes the new head
+    else
+        joinContribution = 0;  // block was a suffix (rest == A): nothing rejoined
+    int restFullCost = s.cost - blockOrigInternal - leftContribution - rightContribution + joinContribution;
+
+    // Internal seam cost of the LKH-reordered block.
+    int blockInternal = 0;
+    for (int i = 1; i < blockLen; i++) blockInternal += columnStore.zerosToOnes(block[i - 1], block[i]);
 
     int bf = block.front();  // block's leading column
     int bb = block.back();   // block's trailing column
@@ -236,7 +268,15 @@ void CBMLKH::reinsertBlock(Solution& s, const CandidateRegion& cr, const vector<
     s.sol.insert(s.sol.end(), block.begin(), block.end());
     s.sol.insert(s.sol.end(), rest.begin() + bestGap, rest.end());
 
-    completeEval(s);
+    // Delta evaluation: new cost = rest cost + block-internal cost + best boundary
+    // delta. Replaces a full O(cols) completeEval with O(blockLen) work.
+    int deltaCost = restFullCost + blockInternal + bestDelta;
+#ifdef DELTA_EVAL_VERIFY
+    completeEval(s);  // authoritative recompute; the delta result must match it exactly
+    if (s.cost != deltaCost) throw runtime_error("Delta eval mismatch: delta=" + to_string(deltaCost) + " full=" + to_string(s.cost));
+#else
+    s.cost = deltaCost;
+#endif
 }
 
 size_t CBMLKH::sampleRankIndex(size_t count, double neighborBias) {

@@ -21,6 +21,7 @@ struct Metrics {
     int bestCost = 0;     // best cost found
     int iterations = 0;   // ILS iterations actually executed
     long elapsedMs = 0;   // wall-clock time spent in LKHILS
+    long lkhTimeMs = 0;   // wall-clock time spent in the LKH path (all of applyLKH: cache lookup + wrapper I/O + subprocess)
 
     long acceptedMoves = 0;  // neighbors that improved on the best
     long rejectedMoves = 0;  // neighbors that did not
@@ -64,6 +65,9 @@ struct Metrics {
 
     double averageBlockSize() const { return blockCount > 0 ? static_cast<double>(blockSizeSum) / blockCount : 0.0; }
     int minBlockSize() const { return blockCount > 0 ? blockSizeMin : 0; }
+
+    // Time spent outside the LKH path: eval function, movement/region selection, reinsertion, etc.
+    long algorithmTimeMs() const { return elapsedMs - lkhTimeMs; }
 };
 
 #endif  // METRICS_HPP

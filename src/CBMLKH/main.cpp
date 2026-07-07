@@ -28,6 +28,8 @@ static json metricsToJson(const Metrics& m) {
         {"finalCost", m.finalCost},
         {"iterations", m.iterations},
         {"elapsedMs", m.elapsedMs},
+        {"lkhTimeMs", m.lkhTimeMs},
+        {"algorithmTimeMs", m.algorithmTimeMs()},
         {"acceptedMoves", m.acceptedMoves},
         {"rejectedMoves", m.rejectedMoves},
         {"lkhCalls", m.lkhCalls},
