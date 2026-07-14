@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <iostream>
@@ -41,7 +42,7 @@ static json metricsToJson(const Metrics& m) {
     };
 }
 
-int main(int argc, char* argv[]) {
+static int run(int argc, char* argv[]) {
     if (argc != 2) throw runtime_error("Usage: ./cbmlkh <config_file>");
 
     Config cfg = ArgsUtil::parseConfigFile(argv[1]);
@@ -96,26 +97,33 @@ int main(int argc, char* argv[]) {
     long long requests = hits + misses;
     double hitRate = requests > 0 ? (100.0 * hits / requests) : 0.0;
 
+    // Report the config CBMLKH actually ran with: its copy is the one whose
+    // fractional segment sizes were resolved against the instance's column count.
+    const Config& resolved = cbmlkh.cfg;
+
     json output = {
         {"instance", {{"name", cbmlkh.instanceName}, {"rows", cbmlkh.rows}, {"cols", cbmlkh.cols}}},
         {"config",
-         {{"threads", cfg.threads},
-          {"blockMovement", toString(cfg.blockMovement)},
-          {"maxIterations", cfg.maxIterations},
-          {"maxTime", cfg.maxTime},
-          {"lkhMaxTime", cfg.lkhMaxTime},
-          {"constructionBias", cfg.constructionBias},
-          {"neighborBias", cfg.neighborBias},
-          {"minNeighborBias", cfg.minNeighborBias},
-          {"neighborBiasDecayFactor", cfg.neighborBiasDecayFactor},
-          {"minSegmentSize", cfg.minSegmentSize},
-          {"maxSegmentSize", cfg.maxSegmentSize},
-          {"maxSegmentSizeUpperBound", cfg.maxSegmentSizeUpperBound},
-          {"minSegmentScore", cfg.minSegmentScore},
-          {"minSegmentScoreLowerBound", cfg.minSegmentScoreLowerBound},
-          {"segmentSizeGrowthFactor", cfg.segmentSizeGrowthFactor},
-          {"segmentScoreDecayFactor", cfg.segmentScoreDecayFactor},
-          {"adaptationInterval", cfg.adaptationInterval}}},
+         {{"threads", resolved.threads},
+          {"blockMovement", toString(resolved.blockMovement)},
+          {"maxIterations", resolved.maxIterations},
+          {"maxTime", resolved.maxTime},
+          {"lkhMaxTime", resolved.lkhMaxTime},
+          {"constructionBias", resolved.constructionBias},
+          {"neighborBias", resolved.neighborBias},
+          {"minNeighborBias", resolved.minNeighborBias},
+          {"neighborBiasDecayFactor", resolved.neighborBiasDecayFactor},
+          {"minSegmentSize", resolved.minSegmentSize},
+          {"maxSegmentSizeFraction", resolved.maxSegmentSizeFraction},
+          {"maxSegmentSizeUpperBoundFraction", resolved.maxSegmentSizeUpperBoundFraction},
+          {"maxSegmentSize", resolved.maxSegmentSize},
+          {"maxSegmentSizeUpperBound", resolved.maxSegmentSizeUpperBound},
+          {"maxMergeSegmentSize", std::min(cbmlkh.cols, 2 * resolved.maxSegmentSizeUpperBound)},
+          {"minSegmentScore", resolved.minSegmentScore},
+          {"minSegmentScoreLowerBound", resolved.minSegmentScoreLowerBound},
+          {"segmentSizeGrowthFactor", resolved.segmentSizeGrowthFactor},
+          {"segmentScoreDecayFactor", resolved.segmentScoreDecayFactor},
+          {"adaptationInterval", resolved.adaptationInterval}}},
         {"global",
          {{"bestCost", bestIndex >= 0 ? trajectories[bestIndex].bestSolution.cost : -1},
           {"bestBlockMovement", bestIndex >= 0 ? toString(trajectories[bestIndex].bestSolution.blockMovement) : "NONE"},
@@ -132,4 +140,15 @@ int main(int argc, char* argv[]) {
     cout << output.dump(2) << endl;
 
     return 0;
+}
+
+int main(int argc, char* argv[]) {
+    // Config errors are the common failure mode; surface the message instead of
+    // letting the exception escape and abort with a bare "terminate called".
+    try {
+        return run(argc, argv);
+    } catch (const exception& e) {
+        cerr << e.what() << endl;
+        return 1;
+    }
 }

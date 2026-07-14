@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <string>
 
 #include "Solution.hpp"
@@ -52,11 +53,52 @@ struct Config {
     BlockMovement blockMovement = RANDOM;
 
     // Turn the fractional segment-size knobs into absolute column counts. Called
-    // once the instance is parsed and `columnCount` is known. The upper bound is
-    // clamped to be at least the base size, and both are floored at 1.
+    // once the instance is parsed and `columnCount` is known. Both are floored at
+    // minSegmentSize (a window narrower than that is never enumerated, so a
+    // smaller cap would leave the candidate pools empty) and capped at the column
+    // count; the upper bound is additionally clamped to be at least the base size.
     void resolveSegmentSizes(int columnCount) {
-        maxSegmentSize = std::max(1, static_cast<int>(std::lround(maxSegmentSizeFraction * columnCount)));
-        maxSegmentSizeUpperBound = std::max(maxSegmentSize, static_cast<int>(std::lround(maxSegmentSizeUpperBoundFraction * columnCount)));
+        const int floorSize = std::min(minSegmentSize, columnCount);
+        auto resolve = [&](double fraction) {
+            int size = static_cast<int>(std::lround(fraction * columnCount));
+            return std::clamp(size, floorSize, columnCount);
+        };
+        maxSegmentSize = resolve(maxSegmentSizeFraction);
+        maxSegmentSizeUpperBound = std::max(maxSegmentSize, resolve(maxSegmentSizeUpperBoundFraction));
+    }
+
+    // Reject configurations that would otherwise fail deep inside the search (or,
+    // worse, silently degrade it): a non-positive segment fraction empties every
+    // candidate pool, a growth factor below 1 shrinks the segment on
+    // diversification, a decay factor above 1 grows the score threshold, etc.
+    void validate() const {
+        auto require = [](bool ok, const std::string& message) {
+            if (!ok) throw std::runtime_error("Invalid configuration: " + message);
+        };
+
+        require(!instancePath.empty(), "instancePath must be set.");
+        require(threads >= 1, "threads must be >= 1.");
+        require(maxIterations >= 1, "maxIterations must be >= 1.");
+        require(maxTime >= 1, "maxTime must be >= 1 (seconds).");
+        require(lkhMaxTime >= 1, "lkhMaxTime must be >= 1 (seconds).");
+
+        require(constructionBias > 0.0, "constructionBias must be > 0.");
+        require(neighborBias > 0.0, "neighborBias must be > 0.");
+        require(minNeighborBias > 0.0 && minNeighborBias <= neighborBias, "minNeighborBias must be in (0, neighborBias].");
+
+        require(minSegmentSize >= 2, "minSegmentSize must be >= 2.");
+        require(maxSegmentSizeFraction > 0.0 && maxSegmentSizeFraction <= 1.0, "maxSegmentSize must be a fraction in (0, 1].");
+        require(maxSegmentSizeUpperBoundFraction >= maxSegmentSizeFraction && maxSegmentSizeUpperBoundFraction <= 1.0,
+                "maxSegmentSizeUpperBound must be a fraction in [maxSegmentSize, 1].");
+
+        require(minSegmentScore > 0.0, "minSegmentScore must be > 0.");
+        require(minSegmentScoreLowerBound > 0.0 && minSegmentScoreLowerBound <= minSegmentScore,
+                "minSegmentScoreLowerBound must be in (0, minSegmentScore].");
+
+        require(adaptationInterval >= 1, "adaptationInterval must be >= 1.");
+        require(segmentSizeGrowthFactor >= 1.0, "segmentSizeGrowthFactor must be >= 1.");
+        require(segmentScoreDecayFactor > 0.0 && segmentScoreDecayFactor <= 1.0, "segmentScoreDecayFactor must be in (0, 1].");
+        require(neighborBiasDecayFactor > 0.0 && neighborBiasDecayFactor <= 1.0, "neighborBiasDecayFactor must be in (0, 1].");
     }
 };
 

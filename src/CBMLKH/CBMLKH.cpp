@@ -328,6 +328,23 @@ CandidateRegion CBMLKH::chooseMergeRegion(Solution& s, const AdaptiveParameters&
 
     int mergeStart = first.start;
     int mergeEnd = max(first.end, second.end);
+
+    // The two regions are each bounded by maxSegmentSize, but the *gap* between
+    // them is not: without this clamp the span can cover nearly the whole
+    // permutation, and the sub-problem handed to LKH (an explicit full distance
+    // matrix, so quadratic in the segment length) blows up. Bound the merged
+    // segment at two maximal regions; when the span exceeds that, keep the
+    // higher-scoring region whole and spend the remaining budget extending
+    // toward the other one.
+    const int maxMergeSize = min(cols, 2 * adaptive.maxSegmentSize);
+    if (mergeEnd - mergeStart + 1 > maxMergeSize) {
+        if (first.score >= second.score) {
+            mergeEnd = mergeStart + maxMergeSize - 1;
+        } else {
+            mergeStart = mergeEnd - maxMergeSize + 1;
+        }
+    }
+
     return {mergeStart, mergeEnd, first.score + second.score};
 }
 
@@ -433,7 +450,9 @@ vector<CandidateRegion> CBMLKH::findPeakColumns(Solution& s, const AdaptiveParam
     vector<CandidateRegion> peaks;
     peaks.reserve(cols);
 
-    int halfSize = adaptive.maxSegmentSize / 2;
+    // The window spans [i - halfSize, i + halfSize], i.e. 2 * halfSize + 1
+    // columns; halving maxSegmentSize - 1 keeps it at maxSegmentSize at most.
+    int halfSize = (adaptive.maxSegmentSize - 1) / 2;
 
     // Peaks are discovered right-to-left: scan candidate columns from the last
     // to the first. Only the discovery order changes; each peak's window

@@ -3,9 +3,23 @@
 #include <fstream>
 #include <functional>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 using namespace std;
+
+namespace {
+// Strip surrounding whitespace (including the '\r' left behind by CRLF files),
+// so that `threads = 8` and `threads=8` parse identically instead of the former
+// throwing "Unknown configuration option".
+string trim(const string& s) {
+    const char* ws = " \t\r\n";
+    size_t begin = s.find_first_not_of(ws);
+    if (begin == string::npos) return "";
+    size_t end = s.find_last_not_of(ws);
+    return s.substr(begin, end - begin + 1);
+}
+}  // namespace
 
 Config ArgsUtil::parseConfigFile(const string& path) {
     Config cfg;
@@ -28,6 +42,7 @@ Config ArgsUtil::parseConfigFile(const string& path) {
     // Base values
     parsers["constructionBias"] = [&](const string& s) { cfg.constructionBias = stod(s); };
     parsers["neighborBias"] = [&](const string& s) { cfg.neighborBias = stod(s); };
+    parsers["minSegmentSize"] = [&](const string& s) { cfg.minSegmentSize = stoi(s); };
     parsers["maxSegmentSize"] = [&](const string& s) { cfg.maxSegmentSizeFraction = stod(s); };
     parsers["minSegmentScore"] = [&](const string& s) { cfg.minSegmentScore = stod(s); };
 
@@ -52,6 +67,8 @@ Config ArgsUtil::parseConfigFile(const string& path) {
     while (getline(file, line)) {
         ++lineNumber;
 
+        line = trim(line);
+
         // Ignore empty lines and comments
         if (line.empty() || line[0] == '#') {
             continue;
@@ -63,13 +80,20 @@ Config ArgsUtil::parseConfigFile(const string& path) {
             throw runtime_error("Invalid line " + to_string(lineNumber) + " in config file: " + line);
         }
 
-        string key = line.substr(0, pos);
-        string value = line.substr(pos + 1);
+        string key = trim(line.substr(0, pos));
+        string value = trim(line.substr(pos + 1));
+
+        if (key.empty()) throw runtime_error("Empty configuration key at line " + to_string(lineNumber) + ": " + line);
+        if (value.empty()) throw runtime_error("Empty value for '" + key + "' at line " + to_string(lineNumber));
 
         auto it = parsers.find(key);
 
         if (it != parsers.end()) {
-            it->second(value);
+            try {
+                it->second(value);
+            } catch (const exception&) {
+                throw runtime_error("Invalid value for '" + key + "' at line " + to_string(lineNumber) + ": " + value);
+            }
         } else if (key == "blockMovement") {
             if (value == "RANDOM") {
                 cfg.blockMovement = RANDOM;
@@ -81,12 +105,14 @@ Config ArgsUtil::parseConfigFile(const string& path) {
                 cfg.blockMovement = MERGE;
             } else {
                 throw runtime_error("Invalid blockMovement value at line " + to_string(lineNumber) + ": " + value +
-                                    ". Expected RANDOM, PEAK, or INTERVAL.");
+                                    ". Expected RANDOM, PEAK, INTERVAL or MERGE.");
             }
         } else {
             throw runtime_error("Unknown configuration option at line " + to_string(lineNumber) + ": " + key);
         }
     }
+
+    cfg.validate();
 
     return cfg;
 }
