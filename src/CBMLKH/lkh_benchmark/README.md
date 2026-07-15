@@ -18,16 +18,16 @@ over the same CBM instances and reports them side by side.
 Both run through the same resumable benchmark loop, so a long `nohup` run can be
 restarted without recomputing or overwriting finished work.
 
-The two solvers run in **strictly sequential phases** and never overlap: the LKH
-phase (instances solved concurrently, each LKH process being single-threaded)
-runs to completion before the CBMLKH phase (one internally multi-threaded process
-at a time) begins. So the two never compete for cores.
+Execution is **interleaved per instance**: every enabled solver runs on the first
+instance, then every solver on the next, and so on (a1 LKH, a1 CBMLKH, a2 LKH, a2
+CBMLKH, …). Solvers run one at a time, so LKH and CBMLKH are never in flight
+simultaneously and never compete for cores.
 
 ## Layout
 
 | File | Responsibility |
 |------|----------------|
-| **`config.py`**      | **Single source of truth for every parameter** — `BenchmarkConfig` (the run spec you edit), `LKHParams`, `DEFAULT_CBMLKH_CONFIG`, and the fixed constants (paths, scratch dir names, index columns). |
+| **`config.py`**      | **Single source of truth for every parameter** — a top-level `PARAMETERS` block holds every tunable value (`LKH_*`, `CBMLKH_CONFIG`, paths, selection, resume flags); `BenchmarkConfig` and `LKHParams` only reference those constants as defaults, never redefining them. |
 | `instance.py`        | `CBMInstance` — parse the sparse format; `onesCount`, `onesToZeros`, `hamming_matrix`, `path_cost`, `count_one_blocks`. |
 | `tsp_converter.py`   | `TSPConverter` — build & write the depot+Hamming TSP matrix. |
 | `lkh_runner.py`      | `LKHRunner` (write par, shell out, parse tour). |
@@ -41,8 +41,8 @@ at a time) begins. So the two never compete for cores.
 
 ## Running (for `nohup`)
 
-**All parameters live in `config.py`** (`BenchmarkConfig` and the constants
-around it). Edit the field defaults there, then run the module — there are no
+**All parameters live in the `PARAMETERS` block at the top of `config.py`.**
+Edit the values there (nowhere else), then run the module — there are no
 command-line arguments:
 
 ```bash
@@ -56,10 +56,9 @@ nohup python -m lkh_benchmark > lkh_run.log 2>&1 &
   `instances_dir`) or the explicit `instances` list.
 - **Which solvers**: `run_lkh`, `run_cbmlkh` (enable both to compare).
 - **Pure LKH**: `lkh` — an `LKHParams(lkh_path, time_limit, runs, move_type,
-  patching_c, patching_a, seed, extra)`; `lkh_workers` — how many instances to
-  solve concurrently (each LKH process is single-threaded; defaults to the core
-  count). CBMLKH is not parallelized at the instance level — it already uses
-  `threads` internally.
+  patching_c, patching_a, seed, extra)`. (`lkh_workers` only applies to a
+  standalone `Benchmark.run(..., workers=N)` batch; the interleaved comparison
+  runs one solver at a time, so it does not affect `run_comparison`.)
 - **CBMLKH**: `cbmlkh_binary` (auto-detected if `None`), `cbmlkh_config` (mirrors
   `parameters.md`; `maxTime` is the per-instance budget), `cbmlkh_timeout`.
 - **Resume**: `lkh_run_tag`, `cbmlkh_run_tag`, `skip_done`.
@@ -109,8 +108,12 @@ Common: `instance`, `rows`, `cols`, `solver`, `cost`, `runtimeSec`, `runTag`,
   solver's **complete** end-of-run JSON: `global` metrics (best cost, accepted /
   rejected moves, `lkhCache` stats, per-operator `operators` effectiveness) and
   every entry of `trajectories` with its full metrics (`blockSize`, `lkhCalls`,
-  `diversifications`, `neighborBiasHistory`, improvement `history`, …).
-  `validated` is `null` — the C++ binary validates internally.
+  `diversifications`, `neighborBiasHistory`, improvement `history`, …). Each
+  `history` entry additionally carries a `histogram`: the per-column new-block
+  contribution of that improving solution (length `cols`, `histogram[i]` = 1-blocks
+  opened at column `i`, summing to the entry's `cost`) — a column-by-column view of
+  how dense regions flatten over the trajectory. `validated` is `null` — the C++
+  binary validates internally.
 
 ## Requirements
 

@@ -80,6 +80,10 @@ Trajectory CBMLKH::LKHILS(Solution& initial) {
 
         if (neighbor.cost < trajectory.bestSolution.cost) {
             validator.validate(neighbor.sol, neighbor.cost);
+            // ILSNeighbor filled neighbor.blocksCount for the pre-move solution;
+            // applyLKH/reinsertBlock then reordered neighbor.sol, so recompute the
+            // per-column histogram against the final permutation before recording.
+            countBlocksPerColumn(neighbor);
             trajectory.record(neighbor, i, chrono::duration_cast<chrono::milliseconds>(now - start).count());
             // Always continue the search from the best solution found so far.
             trajectory.currentSolution = trajectory.bestSolution;

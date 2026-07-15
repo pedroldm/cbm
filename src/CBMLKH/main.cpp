@@ -83,7 +83,11 @@ static int run(int argc, char* argv[]) {
 
         json history = json::array();
         for (const auto& e : traj.history) {
-            history.push_back({{"iteration", e.iteration}, {"cost", e.cost}, {"elapsedMs", e.elapsedMs}, {"move", toString(e.movement)}});
+            history.push_back({{"iteration", e.iteration},
+                               {"cost", e.cost},
+                               {"elapsedMs", e.elapsedMs},
+                               {"move", toString(e.movement)},
+                               {"histogram", e.histogram}});
         }
 
         json tj = metricsToJson(m);

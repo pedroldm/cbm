@@ -13,6 +13,11 @@ struct TrajectoryEntry {
     int iteration;
     int elapsedMs;
     BlockMovement movement;
+    // Per-column new-block contribution of the best solution at this check-in:
+    // histogram[i] = number of 1-blocks opened at column i (zerosToOnes seam,
+    // onesCount for column 0). Snapshots how dense regions "flatten" across the
+    // trajectory so the improvement history can be plotted column-by-column.
+    std::vector<int> histogram;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const TrajectoryEntry& entry) {
