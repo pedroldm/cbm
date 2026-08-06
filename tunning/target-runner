@@ -28,9 +28,9 @@ CONFIG_PARAMS=$*
 # EDIT THIS BLOCK
 ###############################################################################
 # Path to the CBMLKH binary (build it with `make prd`).
-EXE=/home/pedroldm/MSc/cbm/src/CBMLKH/main
+EXE=/home/pedro/cbm/src/CBMLKH/main_prd
 # Written into the config, so it need not match LKHWrapper.hpp's hardcoded value.
-LKH_EXE=/home/pedroldm/MSc/cbm/src/LKH3/LKH
+LKH_EXE=/home/pedro/cbm/src/LKH3/LKH
 ###############################################################################
 
 if [ ! -x "$(command -v ${EXE})" ]; then
@@ -40,8 +40,11 @@ fi
 # CBMLKH only opens the instance after Config::validate(), so without this a bad
 # path surfaces as a generic "Error opening file" a whole run later. A bare name
 # here means trainInstancesDir is not being applied in scenario.txt.
-if [ ! -r "${INSTANCE}" ]; then
-    error "instance not readable: '${INSTANCE}' (pwd: $(pwd)). Check trainInstancesDir in scenario.txt."
+# -f as well as -r: trainInstancesDir is listed wholesale when trainInstancesFile
+# is unset, so a subdirectory sitting among the instances would otherwise pass a
+# readability check and fail later as "Malformed instance header".
+if [ ! -f "${INSTANCE}" ] || [ ! -r "${INSTANCE}" ]; then
+    error "instance is not a readable file: '${INSTANCE}' (pwd: $(pwd)). Check trainInstancesDir in scenario.txt."
 fi
 
 RUN_ID=c${CONFIG_ID}-${INSTANCE_ID}-${SEED}

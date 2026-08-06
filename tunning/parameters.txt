@@ -15,9 +15,12 @@
 ##   minSegmentScoreLowerBound (0.15) <= every minSegmentScore level (min 0.5)
 ##   maxSegmentSizeUpperBound levels  >= every maxSegmentSize level  (max 0.40)
 
-## Budget and resources
+## Budget and resources. maxTime is in seconds: 7200 = 2 hours per experiment.
+## maxIterations is effectively unbounded so maxTime is the only budget,
+## otherwise configurations that burn iterations cheaply would stop early and be
+## compared unfairly against ones that do not finish theirs.
 threads                   "threads="                   c    (1)
-maxTime                   "maxTime="                   c    (3)
+maxTime                   "maxTime="                   c    (7200)
 maxIterations             "maxIterations="             c    (1000000)
 
 ## Structural
@@ -51,8 +54,12 @@ segmentScoreDecayFactor   "segmentScoreDecayFactor="   c    (0.85)              
 ## run is long enough for diversify() to fire at all.
 adaptationInterval        "adaptationInterval="        o    (5, 10, 20, 40)
 
-## LKH
-lkhMaxTime                "lkhMaxTime="                o    (1, 3, 5, 10)
+## LKH. Seconds, written straight into TIME_LIMIT in the .par file: 300 = 5 min
+## through 900 = 15 min. Note this bounds a single ILS iteration, so against the
+## 7200s budget a run gets at most 7200/300 = 24 iterations and as few as
+## 7200/900 = 8. maxTime is a soft deadline checked at the top of the loop, so a
+## run can overshoot by up to one lkhMaxTime (15 min, ~12%).
+lkhMaxTime                "lkhMaxTime="                o    (300, 600, 900)
 
 ## Construction. Fixed: construction is 0-17ms on 200-1000 column instances,
 ## i.e. 0.2% of a run.
