@@ -1,5 +1,9 @@
 instancePath=/home/pedroldm/MSc/cbm/instances/a1
 
+# true = imprime apenas o custo da melhor solucao (um inteiro em stdout), sem o
+# relatorio JSON. Para o target-runner do iRace ler direto.
+iRace=false
+
 threads=8
 blockMovement=RANDOM
 

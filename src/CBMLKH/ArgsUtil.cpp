@@ -1,5 +1,6 @@
 #include "ArgsUtil.hpp"
 
+#include <cctype>
 #include <fstream>
 #include <functional>
 #include <stdexcept>
@@ -19,6 +20,18 @@ string trim(const string& s) {
     size_t end = s.find_last_not_of(ws);
     return s.substr(begin, end - begin + 1);
 }
+
+// Accepts true/false/1/0, case-insensitively. Throws on anything else; the
+// caller turns that into the standard "Invalid value for '<key>'" message.
+bool parseBool(const string& value) {
+    string lowered;
+    lowered.reserve(value.size());
+    for (char c : value) lowered += static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+    if (lowered == "true" || lowered == "1") return true;
+    if (lowered == "false" || lowered == "0") return false;
+    throw runtime_error("expected true or false");
+}
 }  // namespace
 
 Config ArgsUtil::parseConfigFile(const string& path) {
@@ -34,6 +47,7 @@ Config ArgsUtil::parseConfigFile(const string& path) {
 
     // General
     parsers["instancePath"] = [&](const string& s) { cfg.instancePath = s; };
+    parsers["iRace"] = [&](const string& s) { cfg.iRace = parseBool(s); };
     parsers["threads"] = [&](const string& s) { cfg.threads = stoi(s); };
     parsers["maxIterations"] = [&](const string& s) { cfg.maxIterations = stoi(s); };
     parsers["maxTime"] = [&](const string& s) { cfg.maxTime = stoi(s); };

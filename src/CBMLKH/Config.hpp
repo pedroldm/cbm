@@ -12,6 +12,11 @@
 struct Config {
     std::string instancePath;
 
+    // iRace mode: print only the best cost found (a bare integer on stdout)
+    // instead of the full JSON report, which is all a tuner's target-runner
+    // consumes. Diagnostics keep going to stderr, so stdout holds just the number.
+    bool iRace = false;
+
     int threads = 1;
     int maxIterations = 1000;
     int maxTime = 3600;

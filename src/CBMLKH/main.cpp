@@ -63,6 +63,17 @@ static int run(int argc, char* argv[]) {
     vector<Trajectory> trajectories = cbmlkh.run();
     auto runtimeMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - runStart).count();
 
+    // iRace mode: emit nothing but the objective value, so the tuner's
+    // target-runner can read it straight off stdout without parsing the report.
+    if (cfg.iRace) {
+        int bestCost = -1;
+        for (const Trajectory& traj : trajectories) {
+            if (bestCost < 0 || traj.bestSolution.cost < bestCost) bestCost = traj.bestSolution.cost;
+        }
+        cout << bestCost << endl;
+        return 0;
+    }
+
     // Aggregate per-trajectory metrics and locate the global best.
     int bestIndex = -1;
     OperatorStats aggPeak, aggInterval, aggMerge;
