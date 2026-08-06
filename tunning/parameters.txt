@@ -1,37 +1,62 @@
 ## CBMLKH parameter space. Space size: ~143k configurations.
 ##
-## Ordinal (not categorical) for the numerics: irace samples ordinal levels by
-## index, so ordering is preserved and it refines toward good regions.
+## Every config-file key lives here, tuned or not: single-value parameters are
+## fixed, multi-value ones are tuned. target-runner writes each switch verbatim
+## into the config file and adds nothing of its own, so this file is the whole
+## algorithm configuration.
 ##
-## maxSegmentSizePct and segUpperMult are not config keys; target-runner converts
-## them (Config::validate() requires maxSegmentSizeUpperBound >= maxSegmentSize,
-## which irace cannot express since it samples parameters independently).
+## Ordinal (not categorical) for the tuned numerics: irace samples ordinal levels
+## by index, so ordering is preserved and it refines toward good regions.
 ##
-## Fixed, not tuned, written as constants by target-runner:
-##   constructionBias, minSegmentSize, segmentScoreDecayFactor,
-##   neighborBiasDecayFactor, minNeighborBias, minSegmentScoreLowerBound
+## The level sets satisfy Config::validate()'s ordering constraints by
+## construction, which matters because irace samples parameters independently and
+## cannot express them:
+##   minNeighborBias (0.1)            <= every neighborBias level    (min 0.5)
+##   minSegmentScoreLowerBound (0.15) <= every minSegmentScore level (min 0.5)
+##   maxSegmentSizeUpperBound levels  >= every maxSegmentSize level  (max 0.40)
 
-blockMovement            "blockMovement="            c    (RANDOM, PEAK, INTERVAL, MERGE)
+## Budget and resources
+threads                   "threads="                   c    (1)
+maxTime                   "maxTime="                   c    (3)
+maxIterations             "maxIterations="             c    (1000000)
 
-## Dominant parameter: swings the iteration count by 3 orders of magnitude over a
-## fixed budget. Best costs were at the 20-40 end, so levels are spread there.
-maxSegmentSizePct        "maxSegmentSizePct="        o    (5, 10, 15, 20, 25, 30, 40)
-segUpperMult             "segUpperMult="             o    (1.0, 1.5, 2.0, 3.0)
+## Structural
+blockMovement             "blockMovement="             c    (RANDOM, PEAK, INTERVAL, MERGE)
 
-neighborBias             "neighborBias="             o    (0.5, 1.0, 1.5, 2.0, 3.0)
+## Segment sizing. maxSegmentSize is the dominant parameter: it swings the
+## iteration count by 3 orders of magnitude over a fixed budget, and the best
+## costs were at the 0.20-0.40 end, so levels are spread there.
+## maxSegmentSizeUpperBound only caps how far diversification may widen the
+## segment; segmentSizeGrowthFactor=1.0 disables widening outright.
+maxSegmentSize            "maxSegmentSize="            o    (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40)
+maxSegmentSizeUpperBound  "maxSegmentSizeUpperBound="  o    (0.40, 0.60, 0.80, 1.0)
+segmentSizeGrowthFactor   "segmentSizeGrowthFactor="   o    (1.0, 1.25, 1.5, 2.0)
+minSegmentSize            "minSegmentSize="            c    (5)
 
-## Relative to the permutation's mean block density: 1.0 admits any window at
-## least as dense as average. High values admit almost nothing and fall back to
-## the densest window, making region choice greedy. PEAK never reads it.
-minSegmentScore          "minSegmentScore="          o    (0.5, 1.0, 1.5, 2.0, 3.0)  | blockMovement %in% c("RANDOM","INTERVAL","MERGE")
+## Region selection
+neighborBias              "neighborBias="              o    (0.5, 1.0, 1.5, 2.0, 3.0)
+minNeighborBias           "minNeighborBias="           c    (0.1)
+neighborBiasDecayFactor   "neighborBiasDecayFactor="   c    (0.90)
 
-## Only the diversify() trigger and its highest-impact response are tuned; the
-## other adaptation knobs have no effect until the run is long enough for
-## diversify() to fire at all.
-adaptationInterval       "adaptationInterval="       o    (5, 10, 20, 40)
-segmentSizeGrowthFactor  "segmentSizeGrowthFactor="  o    (1.0, 1.25, 1.5, 2.0)
+## Density threshold, relative to the permutation's mean block density: 1.0
+## admits any window at least as dense as average. High values admit almost
+## nothing and fall back to the densest window, making region choice greedy.
+## PEAK never reads these.
+minSegmentScore           "minSegmentScore="           o    (0.5, 1.0, 1.5, 2.0, 3.0)  | blockMovement %in% c("RANDOM","INTERVAL","MERGE")
+minSegmentScoreLowerBound "minSegmentScoreLowerBound=" c    (0.15)                      | blockMovement %in% c("RANDOM","INTERVAL","MERGE")
+segmentScoreDecayFactor   "segmentScoreDecayFactor="   c    (0.85)                      | blockMovement %in% c("RANDOM","INTERVAL","MERGE")
 
-lkhMaxTime               "lkhMaxTime="               o    (1, 3, 5, 10)
+## Adaptation. Only the diversify() trigger and its highest-impact response
+## (segmentSizeGrowthFactor, above) are tuned; the rest have no effect until the
+## run is long enough for diversify() to fire at all.
+adaptationInterval        "adaptationInterval="        o    (5, 10, 20, 40)
+
+## LKH
+lkhMaxTime                "lkhMaxTime="                o    (1, 3, 5, 10)
+
+## Construction. Fixed: construction is 0-17ms on 200-1000 column instances,
+## i.e. 0.2% of a run.
+constructionBias          "constructionBias="          c    (2.5)
 
 [global]
 digits = 4

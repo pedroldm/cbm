@@ -1,9 +1,10 @@
-## Initial configurations. Values must be declared levels from parameters.txt.
+## Initial configurations. Every parameter in parameters.txt needs a column, and
+## every value must be one of that parameter's declared levels.
 ## Line 1: current default from src/CBMLKH/parameters.md. Line 2: same under
-## PEAK (minSegmentScore disabled). Line 3: the large-segment regime that gave
-## the best costs in testing.
+## PEAK (the density-threshold parameters are disabled). Line 3: the
+## large-segment regime that gave the best costs in testing.
 
-blockMovement maxSegmentSizePct segUpperMult neighborBias minSegmentScore adaptationInterval segmentSizeGrowthFactor lkhMaxTime
-RANDOM        10                2.0          1.0          1.5             20                 1.25                    5
-PEAK          10                2.0          1.0          NA              20                 1.25                    5
-RANDOM        25                1.5          1.0          1.5             20                 1.0                     3
+threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias
+1       60      1000000       RANDOM        0.10           0.40                     1.25                    5              1.0          0.1             0.90                    1.5             0.15                      0.85                    20                 5          2.5
+1       60      1000000       PEAK          0.10           0.40                     1.25                    5              1.0          0.1             0.90                    NA              NA                        NA                      20                 5          2.5
+1       60      1000000       RANDOM        0.25           0.40                     1.0                     5              1.0          0.1             0.90                    1.5             0.15                      0.85                    20                 3          2.5

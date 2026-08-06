@@ -2,9 +2,11 @@
 ###############################################################################
 # irace target-runner for CBMLKH.
 #
-# CBMLKH takes a single config file, not CLI flags, so this turns irace's
-# command-line parameters into one, runs the binary with iRace=true (which makes
-# it print only the best cost), and echoes that number.
+# CBMLKH takes a single config file, not CLI flags. Every switch in
+# parameters.txt is already a `key=value` config line, so irace's parameters are
+# written through verbatim; this script adds only what irace supplies per run
+# (instance, seed) and what is machine-specific (paths). All algorithm
+# configuration lives in parameters.txt.
 #
 # $1 config id, $2 instance id, $3 seed, $4 instance, rest = parameters.
 ###############################################################################
@@ -26,22 +28,20 @@ CONFIG_PARAMS=$*
 # EDIT THIS BLOCK
 ###############################################################################
 # Path to the CBMLKH binary (build it with `make prd`).
-EXE=/home/pedro/cbm/src/CBMLKH/main_prd
+EXE=/home/pedroldm/MSc/cbm/src/CBMLKH/main
 # Written into the config, so it need not match LKHWrapper.hpp's hardcoded value.
-LKH_EXE=/home/pedro/cbm/src/LKH3/LKH
-
-# Per-run budget, seconds. Tuning cost ~= maxExperiments * this / parallel.
-RUN_MAX_TIME=60
-# Unbounded so RUN_MAX_TIME is the only budget and comparisons stay fair.
-RUN_MAX_ITERATIONS=1000000
-# parallel * RUN_THREADS should stay at or below the physical core count. A
-# config tuned at 1 thread is not necessarily best at 8 (min over 8 trajectories
-# favours higher variance), but tuning at 8 costs 8x the wall-clock.
-RUN_THREADS=1
+LKH_EXE=/home/pedroldm/MSc/cbm/src/LKH3/LKH
 ###############################################################################
 
 if [ ! -x "$(command -v ${EXE})" ]; then
     error "${EXE}: not found or not executable (pwd: $(pwd))"
+fi
+
+# CBMLKH only opens the instance after Config::validate(), so without this a bad
+# path surfaces as a generic "Error opening file" a whole run later. A bare name
+# here means trainInstancesDir is not being applied in scenario.txt.
+if [ ! -r "${INSTANCE}" ]; then
+    error "instance not readable: '${INSTANCE}' (pwd: $(pwd)). Check trainInstancesDir in scenario.txt."
 fi
 
 RUN_ID=c${CONFIG_ID}-${INSTANCE_ID}-${SEED}
@@ -55,31 +55,6 @@ STDERR=${RUN_ID}.stderr
 cleanup() { rm -rf "${CONFIG_FILE}" "${LKH_TMP_DIR}"; }
 trap cleanup EXIT
 
-# Parameters arrive as `key=value`. Ones disabled by a condition are omitted
-# entirely, not passed as NA.
-declare -A P
-for arg in ${CONFIG_PARAMS}; do
-    P["${arg%%=*}"]="${arg#*=}"
-done
-
-calc() { awk "BEGIN { printf \"%.6f\", $1 }"; }
-
-# --- Not tuned, written as constants ------------------------------------------
-FIXED_CONSTRUCTION_BIAS=2.5
-FIXED_MIN_SEGMENT_SIZE=5
-FIXED_SEGMENT_SCORE_DECAY=0.85
-FIXED_NEIGHBOR_BIAS_DECAY=0.90
-# Ratios of their tuned base, so validate()'s ordering constraints always hold.
-FIXED_MIN_NEIGHBOR_BIAS_RATIO=0.2
-FIXED_MIN_SCORE_RATIO=0.33
-
-# --- Derived: validate() needs maxSegmentSizeUpperBound >= maxSegmentSize -----
-MAX_SEGMENT_SIZE=$(calc "${P[maxSegmentSizePct]} / 100")
-MAX_SEGMENT_UPPER=$(awk -v m="${P[segUpperMult]}" -v s="${MAX_SEGMENT_SIZE}" \
-    'BEGIN { v = m * s; if (v > 1.0) v = 1.0; printf "%.6f", v }')
-MIN_NEIGHBOR_BIAS=$(calc "${FIXED_MIN_NEIGHBOR_BIAS_RATIO} * ${P[neighborBias]}")
-
-# --- Write the config file ----------------------------------------------------
 {
     echo "instancePath=${INSTANCE}"
     echo "iRace=true"
@@ -87,35 +62,11 @@ MIN_NEIGHBOR_BIAS=$(calc "${FIXED_MIN_NEIGHBOR_BIAS_RATIO} * ${P[neighborBias]}"
     echo "seed=${SEED}"
     echo "lkhPath=${LKH_EXE}"
     echo "lkhTmpDir=${LKH_TMP_DIR}"
-    echo "threads=${RUN_THREADS}"
-    echo "maxTime=${RUN_MAX_TIME}"
-    echo "maxIterations=${RUN_MAX_ITERATIONS}"
-
-    echo "blockMovement=${P[blockMovement]}"
-    echo "maxSegmentSize=${MAX_SEGMENT_SIZE}"
-    echo "maxSegmentSizeUpperBound=${MAX_SEGMENT_UPPER}"
-    echo "segmentSizeGrowthFactor=${P[segmentSizeGrowthFactor]}"
-    echo "minSegmentSize=${FIXED_MIN_SEGMENT_SIZE}"
-
-    echo "neighborBias=${P[neighborBias]}"
-    echo "minNeighborBias=${MIN_NEIGHBOR_BIAS}"
-    echo "neighborBiasDecayFactor=${FIXED_NEIGHBOR_BIAS_DECAY}"
-
-    echo "adaptationInterval=${P[adaptationInterval]}"
-    echo "lkhMaxTime=${P[lkhMaxTime]}"
-    echo "constructionBias=${FIXED_CONSTRUCTION_BIAS}"
+    # Every irace parameter, verbatim. Parameters disabled by a condition are
+    # omitted by irace entirely, not passed as NA.
+    for arg in ${CONFIG_PARAMS}; do echo "${arg}"; done
 } > "${CONFIG_FILE}"
 
-# Absent from P when blockMovement=PEAK, which never reads them.
-if [ -n "${P[minSegmentScore]}" ]; then
-    {
-        echo "minSegmentScore=${P[minSegmentScore]}"
-        echo "minSegmentScoreLowerBound=$(calc "${FIXED_MIN_SCORE_RATIO} * ${P[minSegmentScore]}")"
-        echo "segmentScoreDecayFactor=${FIXED_SEGMENT_SCORE_DECAY}"
-    } >> "${CONFIG_FILE}"
-fi
-
-# --- Run ----------------------------------------------------------------------
 $EXE "${CONFIG_FILE}" 1> ${STDOUT} 2> ${STDERR}
 STATUS=$?
 
