@@ -1,0 +1,37 @@
+## CBMLKH parameter space. Space size: ~143k configurations.
+##
+## Ordinal (not categorical) for the numerics: irace samples ordinal levels by
+## index, so ordering is preserved and it refines toward good regions.
+##
+## maxSegmentSizePct and segUpperMult are not config keys; target-runner converts
+## them (Config::validate() requires maxSegmentSizeUpperBound >= maxSegmentSize,
+## which irace cannot express since it samples parameters independently).
+##
+## Fixed, not tuned, written as constants by target-runner:
+##   constructionBias, minSegmentSize, segmentScoreDecayFactor,
+##   neighborBiasDecayFactor, minNeighborBias, minSegmentScoreLowerBound
+
+blockMovement            "blockMovement="            c    (RANDOM, PEAK, INTERVAL, MERGE)
+
+## Dominant parameter: swings the iteration count by 3 orders of magnitude over a
+## fixed budget. Best costs were at the 20-40 end, so levels are spread there.
+maxSegmentSizePct        "maxSegmentSizePct="        o    (5, 10, 15, 20, 25, 30, 40)
+segUpperMult             "segUpperMult="             o    (1.0, 1.5, 2.0, 3.0)
+
+neighborBias             "neighborBias="             o    (0.5, 1.0, 1.5, 2.0, 3.0)
+
+## Relative to the permutation's mean block density: 1.0 admits any window at
+## least as dense as average. High values admit almost nothing and fall back to
+## the densest window, making region choice greedy. PEAK never reads it.
+minSegmentScore          "minSegmentScore="          o    (0.5, 1.0, 1.5, 2.0, 3.0)  | blockMovement %in% c("RANDOM","INTERVAL","MERGE")
+
+## Only the diversify() trigger and its highest-impact response are tuned; the
+## other adaptation knobs have no effect until the run is long enough for
+## diversify() to fire at all.
+adaptationInterval       "adaptationInterval="       o    (5, 10, 20, 40)
+segmentSizeGrowthFactor  "segmentSizeGrowthFactor="  o    (1.0, 1.25, 1.5, 2.0)
+
+lkhMaxTime               "lkhMaxTime="               o    (1, 3, 5, 10)
+
+[global]
+digits = 4

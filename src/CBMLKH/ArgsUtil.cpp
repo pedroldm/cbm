@@ -48,6 +48,9 @@ Config ArgsUtil::parseConfigFile(const string& path) {
     // General
     parsers["instancePath"] = [&](const string& s) { cfg.instancePath = s; };
     parsers["iRace"] = [&](const string& s) { cfg.iRace = parseBool(s); };
+    parsers["lkhPath"] = [&](const string& s) { cfg.lkhPath = s; };
+    parsers["lkhTmpDir"] = [&](const string& s) { cfg.lkhTmpDir = s; };
+    parsers["seed"] = [&](const string& s) { cfg.seed = stoul(s); };
     parsers["threads"] = [&](const string& s) { cfg.threads = stoi(s); };
     parsers["maxIterations"] = [&](const string& s) { cfg.maxIterations = stoi(s); };
     parsers["maxTime"] = [&](const string& s) { cfg.maxTime = stoi(s); };

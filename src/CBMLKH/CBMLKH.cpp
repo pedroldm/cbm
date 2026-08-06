@@ -23,6 +23,9 @@ std::mt19937& threadEngine() {
     static thread_local std::mt19937 engine(std::random_device{}() ^ static_cast<unsigned>(std::hash<std::thread::id>{}(std::this_thread::get_id())));
     return engine;
 }
+
+// Re-seed the calling thread's engine, replacing the nondeterministic default.
+void seedThreadEngine(unsigned long seed) { threadEngine().seed(static_cast<std::mt19937::result_type>(seed)); }
 }  // namespace
 
 CBMLKH::CBMLKH(const Config& cfg, shared_ptr<LKHCache> cache)
@@ -44,6 +47,12 @@ vector<Trajectory> CBMLKH::run() {
 
 #pragma omp parallel for num_threads(cfg.threads)
     for (int i = 0; i < cfg.threads; i++) {
+        // Seed per trajectory index rather than per OS thread: OpenMP does not
+        // guarantee which thread runs which iteration, so seeding by thread id
+        // would make the result depend on scheduling. Trajectory i always gets
+        // seed + i, so it replays identically regardless of the mapping.
+        if (cfg.seed != 0) seedThreadEngine(cfg.seed + static_cast<unsigned long>(i));
+
         initialSolutions[i] = greedyConstruction();
         completeEval(initialSolutions[i]);
         Trajectory trajectory = LKHILS(initialSolutions[i]);
@@ -467,6 +476,21 @@ vector<CandidateRegion> CBMLKH::findDenseSegments(Solution& s, const AdaptivePar
     // This enumerates exactly the same set of [left, right] windows (same size
     // and score bounds) as a forward scan, only in reverse order; the final
     // sort makes the candidate set fed to selection identical.
+    // minSegmentScore is a *relative* threshold: a window qualifies when its
+    // average block density is at least minSegmentScore times the density of the
+    // permutation as a whole. That keeps the knob portable across instances --
+    // the raw score is a block count, so it scales with the row count and with
+    // how good the current solution is, and any absolute threshold would mean
+    // something different on a 100x200 instance than on a 5000x40000 one, or
+    // even at different points of the same run. Read it as "how much denser than
+    // average a window must be": 1.0 = at least average, 2.0 = twice as dense.
+    const double meanDensity = static_cast<double>(prefix[columnCount]) / columnCount;
+    const double requiredDensity = adaptive.minSegmentScore * meanDensity;
+
+    // Best window seen regardless of the score threshold, used as the fallback
+    // below.
+    CandidateRegion bestBelowThreshold{-1, -1, -1.0};
+
     for (int left = columnCount - 1; left >= 0; left--) {
         int maxRight = min(columnCount - 1, left + adaptive.maxSegmentSize - 1);
         for (int right = maxRight; right >= left + cfg.minSegmentSize - 1; right--) {
@@ -474,12 +498,30 @@ vector<CandidateRegion> CBMLKH::findDenseSegments(Solution& s, const AdaptivePar
             int blockSum = prefix[right + 1] - prefix[left];
 
             double averageDensity = static_cast<double>(blockSum) / size;
+            // Ranking still uses the raw block sum, so wider/denser windows keep
+            // outranking narrow ones exactly as before; only the admission test
+            // below changed from absolute to relative.
             double score = averageDensity * size;
 
-            if (score >= adaptive.minSegmentScore) {
+            if (averageDensity >= requiredDensity) {
                 segments.push_back({left, right, score});
+            } else if (score > bestBelowThreshold.score) {
+                bestBelowThreshold = {left, right, score};
             }
         }
+    }
+
+    // No window cleared minSegmentScore: fall back to the densest one that
+    // exists rather than leaving the pool empty. The threshold is a preference,
+    // not a feasibility constraint, and an empty pool used to throw from inside
+    // the OpenMP region in run() — which is not catchable there, so it aborted
+    // the process. That is reachable in normal operation, not just from a
+    // misconfiguration: `score` is the window's raw block sum, so every score
+    // falls as the solution improves, and a threshold that was easily met at
+    // iteration 0 can exclude every window later on.
+    if (segments.empty() && bestBelowThreshold.start >= 0) {
+        segments.push_back(bestBelowThreshold);
+        return segments;
     }
 
     sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
@@ -505,6 +547,14 @@ vector<CandidateRegion> CBMLKH::findPeakColumns(Solution& s, const AdaptiveParam
             int end = min(cols - 1, i + halfSize);
             peaks.push_back({start, end, static_cast<double>(s.blocksCount[i])});
         }
+    }
+
+    // Every column contributes zero blocks, i.e. the solution is already optimal.
+    // Hand back one window anyway: the callers would otherwise throw from inside
+    // run()'s OpenMP region, which aborts the process instead of propagating.
+    if (peaks.empty() && cols > 0) {
+        peaks.push_back({0, min(cols - 1, max(0, adaptive.maxSegmentSize - 1)), 0.0});
+        return peaks;
     }
 
     sort(peaks.begin(), peaks.end(), [](const auto& a, const auto& b) { return a.score > b.score; });

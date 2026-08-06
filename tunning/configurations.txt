@@ -1,0 +1,9 @@
+## Initial configurations. Values must be declared levels from parameters.txt.
+## Line 1: current default from src/CBMLKH/parameters.md. Line 2: same under
+## PEAK (minSegmentScore disabled). Line 3: the large-segment regime that gave
+## the best costs in testing.
+
+blockMovement maxSegmentSizePct segUpperMult neighborBias minSegmentScore adaptationInterval segmentSizeGrowthFactor lkhMaxTime
+RANDOM        10                2.0          1.0          1.5             20                 1.25                    5
+PEAK          10                2.0          1.0          NA              20                 1.25                    5
+RANDOM        25                1.5          1.0          1.5             20                 1.0                     3

@@ -7,6 +7,11 @@ iRace=false
 threads=8
 blockMovement=RANDOM
 
+# 0 = cada thread e' semeada por random_device (execucao nao reproduzivel).
+# Qualquer outro valor: a trajetoria i usa seed + i. Para replay exato a
+# execucao tambem precisa ser limitada por maxIterations, nao por maxTime.
+seed=0
+
 maxIterations=1000
 # Segundos
 maxTime=60
@@ -18,8 +23,12 @@ constructionBias=2.5
 neighborBias=1.0
 minNeighborBias=0.2
 
-minSegmentScore=10.0
-minSegmentScoreLowerBound=2.0
+# Densidade minima de uma janela candidata (INTERVAL), RELATIVA a' densidade
+# media de blocos da permutacao: 1.0 = pelo menos a media, 2.0 = o dobro da
+# media. Por ser razao e nao contagem absoluta, o valor vale para instancias de
+# tamanhos e densidades diferentes.
+minSegmentScore=1.5
+minSegmentScoreLowerBound=0.5
 
 # Segment sizes are fractions of the instance's column count, resolved at load
 # time (e.g. on a 1000-column instance: 0.1 -> 100, 0.2 -> 200). PEAK and

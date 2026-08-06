@@ -13,6 +13,14 @@ using namespace std;
 
 namespace fs = std::filesystem;
 
+void LKHWrapper::configure(const string& executablePath, const string& temporaryDir) {
+    if (!executablePath.empty()) lkhPath = executablePath;
+    if (!temporaryDir.empty()) {
+        // Paths are built by plain concatenation, so the separator is required.
+        tmpDir = temporaryDir.back() == '/' ? temporaryDir : temporaryDir + "/";
+    }
+}
+
 LKHWrapper::LKHWrapper(const ColumnStore& columns) : columns(columns) {
     if (!fs::exists(tmpDir)) {
         fs::create_directories(tmpDir);

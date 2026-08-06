@@ -55,6 +55,7 @@ static int run(int argc, char* argv[]) {
 
     Config cfg = ArgsUtil::parseConfigFile(argv[1]);
 
+    LKHWrapper::configure(cfg.lkhPath, cfg.lkhTmpDir);
     LKHWrapper::clearTmpDir();
     auto cache = make_shared<LKHCache>();
     CBMLKH cbmlkh(cfg, cache);
@@ -127,7 +128,8 @@ static int run(int argc, char* argv[]) {
     json output = {
         {"instance", {{"name", cbmlkh.instanceName}, {"rows", cbmlkh.rows}, {"cols", cbmlkh.cols}}},
         {"config",
-         {{"threads", resolved.threads},
+         {{"seed", resolved.seed},
+          {"threads", resolved.threads},
           {"blockMovement", toString(resolved.blockMovement)},
           {"maxIterations", resolved.maxIterations},
           {"maxTime", resolved.maxTime},

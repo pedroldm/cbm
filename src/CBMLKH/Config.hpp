@@ -17,6 +17,20 @@ struct Config {
     // consumes. Diagnostics keep going to stderr, so stdout holds just the number.
     bool iRace = false;
 
+    // Override LKHWrapper's compiled-in defaults. Empty = keep the default.
+    // lkhTmpDir must be unique per concurrent process (see LKHWrapper::configure).
+    std::string lkhPath;
+    std::string lkhTmpDir;
+
+    // RNG seed. 0 (the default) seeds each thread from random_device, i.e. runs
+    // are not reproducible. Any other value makes trajectory i use seed + i.
+    //
+    // Caveat: this only pins the search's random choices. A run bounded by
+    // maxTime still executes a machine- and load-dependent number of iterations,
+    // so full replay additionally requires the run to be bounded by
+    // maxIterations. LKH itself is deterministic on identical input.
+    unsigned long seed = 0;
+
     int threads = 1;
     int maxIterations = 1000;
     int maxTime = 3600;
@@ -26,6 +40,11 @@ struct Config {
     double constructionBias = 1.0;
     double neighborBias = 1.0;
     int minSegmentSize = 5;
+    // Relative density threshold for INTERVAL candidate windows, in multiples of
+    // the permutation's own mean block density (see findDenseSegments): 1.0
+    // admits any window at least as dense as average, 2.0 only windows twice as
+    // dense. Being a ratio rather than a block count, it carries across
+    // instances of different sizes and densities.
     double minSegmentScore = 1.0;
 
     // Segment sizes are configured as fractions of the column count and resolved

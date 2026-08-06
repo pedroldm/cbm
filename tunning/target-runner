@@ -1,0 +1,137 @@
+#!/bin/bash
+###############################################################################
+# irace target-runner for CBMLKH.
+#
+# CBMLKH takes a single config file, not CLI flags, so this turns irace's
+# command-line parameters into one, runs the binary with iRace=true (which makes
+# it print only the best cost), and echoes that number.
+#
+# $1 config id, $2 instance id, $3 seed, $4 instance, rest = parameters.
+###############################################################################
+error() {
+    echo "`TZ=UTC date`: $0: error: $@"
+    exit 1
+}
+
+# This parses the arguments given by irace. Do not touch it!
+CONFIG_ID=$1
+INSTANCE_ID=$2
+SEED=$3
+INSTANCE=$4
+shift 4 || error "Not enough parameters"
+CONFIG_PARAMS=$*
+# End of parsing
+
+###############################################################################
+# EDIT THIS BLOCK
+###############################################################################
+# Path to the CBMLKH binary (build it with `make prd`).
+EXE=/home/pedro/cbm/src/CBMLKH/main_prd
+# Written into the config, so it need not match LKHWrapper.hpp's hardcoded value.
+LKH_EXE=/home/pedro/cbm/src/LKH3/LKH
+
+# Per-run budget, seconds. Tuning cost ~= maxExperiments * this / parallel.
+RUN_MAX_TIME=60
+# Unbounded so RUN_MAX_TIME is the only budget and comparisons stay fair.
+RUN_MAX_ITERATIONS=1000000
+# parallel * RUN_THREADS should stay at or below the physical core count. A
+# config tuned at 1 thread is not necessarily best at 8 (min over 8 trajectories
+# favours higher variance), but tuning at 8 costs 8x the wall-clock.
+RUN_THREADS=1
+###############################################################################
+
+if [ ! -x "$(command -v ${EXE})" ]; then
+    error "${EXE}: not found or not executable (pwd: $(pwd))"
+fi
+
+RUN_ID=c${CONFIG_ID}-${INSTANCE_ID}-${SEED}
+CONFIG_FILE=$(mktemp "${TMPDIR:-/tmp}/cbmlkh-${RUN_ID}-XXXXXX.cfg")
+# Unique per run: CBMLKH empties it at startup, so a shared directory would have
+# concurrent runs deleting each other's in-flight LKH files.
+LKH_TMP_DIR="${TMPDIR:-/tmp}/LKH-${RUN_ID}-$$/"
+STDOUT=${RUN_ID}.stdout
+STDERR=${RUN_ID}.stderr
+
+cleanup() { rm -rf "${CONFIG_FILE}" "${LKH_TMP_DIR}"; }
+trap cleanup EXIT
+
+# Parameters arrive as `key=value`. Ones disabled by a condition are omitted
+# entirely, not passed as NA.
+declare -A P
+for arg in ${CONFIG_PARAMS}; do
+    P["${arg%%=*}"]="${arg#*=}"
+done
+
+calc() { awk "BEGIN { printf \"%.6f\", $1 }"; }
+
+# --- Not tuned, written as constants ------------------------------------------
+FIXED_CONSTRUCTION_BIAS=2.5
+FIXED_MIN_SEGMENT_SIZE=5
+FIXED_SEGMENT_SCORE_DECAY=0.85
+FIXED_NEIGHBOR_BIAS_DECAY=0.90
+# Ratios of their tuned base, so validate()'s ordering constraints always hold.
+FIXED_MIN_NEIGHBOR_BIAS_RATIO=0.2
+FIXED_MIN_SCORE_RATIO=0.33
+
+# --- Derived: validate() needs maxSegmentSizeUpperBound >= maxSegmentSize -----
+MAX_SEGMENT_SIZE=$(calc "${P[maxSegmentSizePct]} / 100")
+MAX_SEGMENT_UPPER=$(awk -v m="${P[segUpperMult]}" -v s="${MAX_SEGMENT_SIZE}" \
+    'BEGIN { v = m * s; if (v > 1.0) v = 1.0; printf "%.6f", v }')
+MIN_NEIGHBOR_BIAS=$(calc "${FIXED_MIN_NEIGHBOR_BIAS_RATIO} * ${P[neighborBias]}")
+
+# --- Write the config file ----------------------------------------------------
+{
+    echo "instancePath=${INSTANCE}"
+    echo "iRace=true"
+    # Replay is only exact under a maxIterations bound, not maxTime.
+    echo "seed=${SEED}"
+    echo "lkhPath=${LKH_EXE}"
+    echo "lkhTmpDir=${LKH_TMP_DIR}"
+    echo "threads=${RUN_THREADS}"
+    echo "maxTime=${RUN_MAX_TIME}"
+    echo "maxIterations=${RUN_MAX_ITERATIONS}"
+
+    echo "blockMovement=${P[blockMovement]}"
+    echo "maxSegmentSize=${MAX_SEGMENT_SIZE}"
+    echo "maxSegmentSizeUpperBound=${MAX_SEGMENT_UPPER}"
+    echo "segmentSizeGrowthFactor=${P[segmentSizeGrowthFactor]}"
+    echo "minSegmentSize=${FIXED_MIN_SEGMENT_SIZE}"
+
+    echo "neighborBias=${P[neighborBias]}"
+    echo "minNeighborBias=${MIN_NEIGHBOR_BIAS}"
+    echo "neighborBiasDecayFactor=${FIXED_NEIGHBOR_BIAS_DECAY}"
+
+    echo "adaptationInterval=${P[adaptationInterval]}"
+    echo "lkhMaxTime=${P[lkhMaxTime]}"
+    echo "constructionBias=${FIXED_CONSTRUCTION_BIAS}"
+} > "${CONFIG_FILE}"
+
+# Absent from P when blockMovement=PEAK, which never reads them.
+if [ -n "${P[minSegmentScore]}" ]; then
+    {
+        echo "minSegmentScore=${P[minSegmentScore]}"
+        echo "minSegmentScoreLowerBound=$(calc "${FIXED_MIN_SCORE_RATIO} * ${P[minSegmentScore]}")"
+        echo "segmentScoreDecayFactor=${FIXED_SEGMENT_SCORE_DECAY}"
+    } >> "${CONFIG_FILE}"
+fi
+
+# --- Run ----------------------------------------------------------------------
+$EXE "${CONFIG_FILE}" 1> ${STDOUT} 2> ${STDERR}
+STATUS=$?
+
+if [ $STATUS -ne 0 ] || [ ! -s "${STDOUT}" ]; then
+    # Keep the config: diagnosing a failure needs it.
+    cp "${CONFIG_FILE}" "${RUN_ID}.cfg" 2>/dev/null
+    error "${EXE} failed (status ${STATUS}); see ${RUN_ID}.cfg and ${STDERR}"
+fi
+
+# With iRace=true the binary prints the best cost and nothing else.
+COST=$(cat ${STDOUT})
+if ! [[ "$COST" =~ ^[0-9]+$ ]]; then
+    cp "${CONFIG_FILE}" "${RUN_ID}.cfg" 2>/dev/null
+    error "unexpected output '${COST}'; see ${RUN_ID}.cfg and ${STDERR}"
+fi
+
+echo "$COST"
+rm -f "${STDOUT}" "${STDERR}"
+exit 0
