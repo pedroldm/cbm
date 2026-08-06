@@ -30,3 +30,15 @@ segmentScoreDecayFactor=0.85
 neighborBiasDecayFactor=0.90
 
 adaptationInterval=20
+
+# Criterio de parada por histograma: interrompe a trajetoria apos N iteracoes
+# consecutivas sem achatar o histograma de blocos por coluna da solucao
+# incumbente. 0 desativa (a parada fica so' por maxIterations / maxTime).
+histogramStopInterval=0
+# Como o achatamento e' medido (menor = mais achatado em todas as medidas):
+#   VARIANCE - variancia dos blocos por coluna; achatar = rebaixar os picos
+#   PEAK     - altura do maior pico; so' conta quando a pior coluna cai
+#   ENTROPY  - entropia de Shannon normalizada (invariante de escala): mede a
+#              redistribuicao dos blocos, nao a reducao do total
+#   GINI     - coeficiente de Gini (invariante de escala, O(c log c))
+histogramStopMeasure=VARIANCE

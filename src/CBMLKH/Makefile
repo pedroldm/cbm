@@ -24,7 +24,7 @@ OBJS_PRD = $(SRCS:.cpp=.prd.o)
 OBJS_VERIFY = $(SRCS:.cpp=.verify.o)
 
 # Header files
-HEADERS = ArgsUtil.hpp Config.hpp ColumnStore.hpp LKHCache.hpp Validator.hpp Trajectory.hpp LKHWrapper.hpp CBMLKH.hpp Solution.hpp PrintUtil.hpp Metrics.hpp ../IO/json.hpp
+HEADERS = ArgsUtil.hpp Config.hpp ColumnStore.hpp LKHCache.hpp Validator.hpp Trajectory.hpp LKHWrapper.hpp CBMLKH.hpp Solution.hpp PrintUtil.hpp Metrics.hpp Flatness.hpp ../IO/json.hpp
 
 # Target executable
 TARGET = main

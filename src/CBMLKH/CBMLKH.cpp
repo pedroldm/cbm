@@ -65,6 +65,22 @@ Trajectory CBMLKH::LKHILS(Solution& initial) {
 
     int iterationsWithoutImprovement = 0;
 
+    // Histogram stop criterion: count the consecutive iterations that fail to
+    // make the incumbent's block histogram any flatter (under the configured
+    // FlatnessMeasure) and abandon the trajectory once cfg.histogramStopInterval
+    // of them pile up. Only the incumbent is measured, since a rejected neighbor
+    // is discarded and never becomes the search state; that makes this strictly
+    // stronger than plain cost stagnation, because an improving move that lowers
+    // the cost without flattening the histogram does not reset the counter.
+    const bool histogramStopEnabled = cfg.histogramStopInterval > 0;
+    int iterationsWithoutFlattening = 0;
+    if (histogramStopEnabled) {
+        // greedyConstruction only sizes blocksCount; fill it before scoring.
+        countBlocksPerColumn(trajectory.bestSolution);
+        metrics.bestFlatness = flatnessScore(cfg.histogramStopMeasure, trajectory.bestSolution.blocksCount);
+        metrics.initialFlatness = metrics.bestFlatness;
+    }
+
     auto start = chrono::steady_clock::now();
     auto deadline = start + chrono::seconds(cfg.maxTime);
 
@@ -72,6 +88,11 @@ Trajectory CBMLKH::LKHILS(Solution& initial) {
     for (; i < cfg.maxIterations; i++) {
         auto now = chrono::steady_clock::now();
         if (now >= deadline) break;
+
+        if (histogramStopEnabled && iterationsWithoutFlattening >= cfg.histogramStopInterval) {
+            metrics.histogramStop = true;
+            break;
+        }
 
         metrics.neighborBiasHistory.push_back(adaptive.neighborBias);
 
@@ -93,9 +114,24 @@ Trajectory CBMLKH::LKHILS(Solution& initial) {
             op.totalImprovement += bestBefore - neighbor.cost;
             iterationsWithoutImprovement = 0;
             adaptive.reset(cfg);
+
+            // countBlocksPerColumn above already refreshed the histogram of the
+            // new incumbent, so scoring it costs only the measure itself.
+            if (histogramStopEnabled) {
+                double flatness = flatnessScore(cfg.histogramStopMeasure, neighbor.blocksCount);
+                if (flatness < metrics.bestFlatness) {
+                    metrics.bestFlatness = flatness;
+                    metrics.flattenings++;
+                    iterationsWithoutFlattening = 0;
+                } else {
+                    iterationsWithoutFlattening++;
+                }
+            }
         } else {
             metrics.rejectedMoves++;
             iterationsWithoutImprovement++;
+            // The incumbent did not move, so it did not flatten either.
+            if (histogramStopEnabled) iterationsWithoutFlattening++;
             if (iterationsWithoutImprovement % cfg.adaptationInterval == 0) {
                 adaptive.diversify(cfg);
                 metrics.diversifications++;
@@ -104,6 +140,7 @@ Trajectory CBMLKH::LKHILS(Solution& initial) {
     }
 
     metrics.iterations = i;
+    metrics.iterationsWithoutFlattening = iterationsWithoutFlattening;
     metrics.bestCost = trajectory.bestSolution.cost;
     metrics.finalCost = trajectory.currentSolution.cost;
     metrics.elapsedMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();

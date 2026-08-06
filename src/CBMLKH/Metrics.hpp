@@ -2,6 +2,7 @@
 #define METRICS_HPP
 
 #include <climits>
+#include <limits>
 #include <vector>
 
 #include "Solution.hpp"
@@ -30,6 +31,14 @@ struct Metrics {
     long lkhCacheMisses = 0;  // applyLKH calls that actually shelled out to LKH
 
     long diversifications = 0;  // adaptive.diversify() calls
+
+    // Histogram stop criterion (see Config::histogramStopInterval). Left at the
+    // defaults when the criterion is disabled.
+    bool histogramStop = false;                                        // trajectory halted because the histogram stopped flattening
+    long flattenings = 0;                                              // iterations that reached a new best flatness
+    double bestFlatness = std::numeric_limits<double>::infinity();     // flattest score reached (lower = flatter)
+    double initialFlatness = std::numeric_limits<double>::infinity();  // flatness of the constructed solution
+    int iterationsWithoutFlattening = 0;                               // value of the stop counter when the loop ended
 
     OperatorStats peak;
     OperatorStats interval;

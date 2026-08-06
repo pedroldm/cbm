@@ -49,6 +49,9 @@ Config ArgsUtil::parseConfigFile(const string& path) {
     // Adaptation control
     parsers["adaptationInterval"] = [&](const string& s) { cfg.adaptationInterval = stoi(s); };
 
+    // Stop criteria
+    parsers["histogramStopInterval"] = [&](const string& s) { cfg.histogramStopInterval = stoi(s); };
+
     // Bounds
     parsers["maxSegmentSizeUpperBound"] = [&](const string& s) { cfg.maxSegmentSizeUpperBoundFraction = stod(s); };
 
@@ -106,6 +109,12 @@ Config ArgsUtil::parseConfigFile(const string& path) {
             } else {
                 throw runtime_error("Invalid blockMovement value at line " + to_string(lineNumber) + ": " + value +
                                     ". Expected RANDOM, PEAK, INTERVAL or MERGE.");
+            }
+        } else if (key == "histogramStopMeasure") {
+            try {
+                cfg.histogramStopMeasure = parseFlatnessMeasure(value);
+            } catch (const exception& e) {
+                throw runtime_error(string(e.what()) + " (line " + to_string(lineNumber) + ")");
             }
         } else {
             throw runtime_error("Unknown configuration option at line " + to_string(lineNumber) + ": " + key);

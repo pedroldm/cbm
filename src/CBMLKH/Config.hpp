@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "Flatness.hpp"
 #include "Solution.hpp"
 
 struct Config {
@@ -34,6 +35,13 @@ struct Config {
 
     // Adaptation control
     int adaptationInterval = 20;
+
+    // Histogram stop criterion: halt a trajectory once this many consecutive ILS
+    // iterations have passed without the incumbent's block histogram getting
+    // flatter (as judged by histogramStopMeasure). 0 disables the criterion, so
+    // the run is bounded by maxIterations / maxTime alone.
+    int histogramStopInterval = 0;
+    FlatnessMeasure histogramStopMeasure = FlatnessMeasure::VARIANCE;
 
     // Bounds
 
@@ -96,6 +104,7 @@ struct Config {
                 "minSegmentScoreLowerBound must be in (0, minSegmentScore].");
 
         require(adaptationInterval >= 1, "adaptationInterval must be >= 1.");
+        require(histogramStopInterval >= 0, "histogramStopInterval must be >= 0 (0 disables the histogram stop criterion).");
         require(segmentSizeGrowthFactor >= 1.0, "segmentSizeGrowthFactor must be >= 1.");
         require(segmentScoreDecayFactor > 0.0 && segmentScoreDecayFactor <= 1.0, "segmentScoreDecayFactor must be in (0, 1].");
         require(neighborBiasDecayFactor > 0.0 && neighborBiasDecayFactor <= 1.0, "neighborBiasDecayFactor must be in (0, 1].");
