@@ -1,0 +1,4 @@
+PROBLEM_FILE = /home/pedro/cbm/instances/tsp/tsp
+TOUR_FILE    = /home/pedro/cbm/instances/tsp/tsp.sol
+RUNS         = 1
+TIME_LIMIT   = 7200
