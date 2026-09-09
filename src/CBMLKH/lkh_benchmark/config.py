@@ -40,7 +40,7 @@ RUN_CBMLKH = True
 
 # ---- Pure-LKH parameters (forwarded to LKH; match ``LKHWrapper::writePar``) - #
 LKH_PATH = str(CBMLKH_DIR.parent / "LKH3" / "LKH")  # external LKH3 executable
-LKH_TIME_LIMIT = 300  # seconds (TIME_LIMIT)
+LKH_TIME_LIMIT = 7200  # seconds (TIME_LIMIT)
 LKH_RUNS = 1
 LKH_MOVE_TYPE = 5
 LKH_PATCHING_C = 3
@@ -59,24 +59,27 @@ CBMLKH_BINARY: str | None = None
 # Subprocess hard timeout in seconds (None = no cap).
 CBMLKH_TIMEOUT: float | None = None
 # Config fed to the C++ binary (keys mirror parameters.md; instancePath is set
-# per run). Every value here is used verbatim — nothing overrides it downstream.
+# per run). Every value here is used verbatim - nothing overrides it downstream.
+# Source: irace 4.2.0 tuning run finished 2026-08-20, best-so-far configuration
+# 135 (elite rank 1 of iteration 5). Reproduced exactly, including the budget /
+# resource knobs irace held fixed (threads, maxTime, maxIterations).
 CBMLKH_CONFIG: dict = {
-    "threads": 8,
-    "blockMovement": "RANDOM",
-    "maxIterations": 1000,
-    "maxTime": 300,  # seconds
-    "lkhMaxTime": 1,  # minutes
+    "threads": 1,
+    "blockMovement": "MERGE",
+    "maxIterations": 1000000,  # effectively unbounded; maxTime is the real budget
+    "maxTime": 7200,  # seconds
+    "lkhMaxTime": 600,  # seconds (TIME_LIMIT in the .par file)
     "constructionBias": 2.5,
-    "neighborBias": 1.0,
-    "minNeighborBias": 0.2,
-    "minSegmentScore": 10.0,
-    "minSegmentScoreLowerBound": 2.0,
-    "maxSegmentSize": 0.1,  # fraction of column count
-    "maxSegmentSizeUpperBound": 0.2,  # fraction of column count
-    "segmentSizeGrowthFactor": 1.25,
+    "neighborBias": 2.0,
+    "minNeighborBias": 0.1,
+    "minSegmentScore": 2.0,
+    "minSegmentScoreLowerBound": 0.15,
+    "maxSegmentSize": 0.30,  # fraction of column count
+    "maxSegmentSizeUpperBound": 0.60,  # fraction of column count
+    "segmentSizeGrowthFactor": 1.5,
     "segmentScoreDecayFactor": 0.85,
     "neighborBiasDecayFactor": 0.90,
-    "adaptationInterval": 20,
+    "adaptationInterval": 10,
 }
 
 # ---- Output / resume control ----------------------------------------------- #
