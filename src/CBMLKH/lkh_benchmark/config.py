@@ -64,7 +64,8 @@ CBMLKH_TIMEOUT: float | None = None
 # 135 (elite rank 1 of iteration 5; tunning/output.txt), including the budget /
 # resource knobs irace held fixed (threads, maxTime). Exceptions, as in the final
 # experiments (experiments/cbm_experiments/methods.py): maxIterations = 1000
-# (irace: 1000000) and lkhMaxTime = 20% of maxTime (irace: 300).
+# (irace: 1000000), lkhMaxTime = 20% of maxTime (irace: 300), and LKH blocks of
+# 10%..25% of the columns (min 0.10, segments 0.10 widening to 0.125, MERGE <= 0.25).
 CBMLKH_CONFIG: dict = {
     "threads": 1,
     "blockMovement": "MERGE",
@@ -76,8 +77,9 @@ CBMLKH_CONFIG: dict = {
     "minNeighborBias": 0.1,
     "minSegmentScore": 2.0,
     "minSegmentScoreLowerBound": 0.15,
-    "maxSegmentSize": 0.30,  # fraction of column count
-    "maxSegmentSizeUpperBound": 0.60,  # fraction of column count
+    "minSegmentSizeFraction": 0.10,  # fraction of column count
+    "maxSegmentSize": 0.10,  # fraction of column count
+    "maxSegmentSizeUpperBound": 0.125,  # fraction of column count; MERGE <= 2x = 0.25
     "segmentSizeGrowthFactor": 1.5,
     "segmentScoreDecayFactor": 0.85,
     "neighborBiasDecayFactor": 0.90,

@@ -53,8 +53,9 @@ class TestCbmlkhConfig(unittest.TestCase):
         self.assertEqual(cfg["lkhMaxTime"], "1440")
         self.assertEqual(cfg["maxTime"], "7200")
         self.assertEqual(cfg["maxIterations"], "1000")
+        self.assertEqual((cfg["minSegmentSizeFraction"], cfg["maxSegmentSize"], cfg["maxSegmentSizeUpperBound"]), ("0.1", "0.1", "0.125"))
         for key, value in M.CBMLKH_IRACE_CONFIG.items():
-            if key != "maxIterations":
+            if key not in M.CBMLKH_EXPERIMENT_OVERRIDES:
                 self.assertEqual(cfg[key], str(value), key)
         self.assertFalse([k for k in cfg if k.startswith("lkh_") or k == "tsp_backend"])
 

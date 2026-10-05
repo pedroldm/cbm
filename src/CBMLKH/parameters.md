@@ -48,6 +48,8 @@ minSegmentScoreLowerBound=0.5
 # INTERVAL segments never exceed the resolved maxSegmentSize (widened toward
 # maxSegmentSizeUpperBound by diversification); MERGE spans at most two of them.
 minSegmentSize=5
+# Alternativa fracionaria (sobrepoe minSegmentSize): 0.1 = 10% das colunas.
+# minSegmentSizeFraction=0.1
 maxSegmentSize=0.1
 maxSegmentSizeUpperBound=0.2
 

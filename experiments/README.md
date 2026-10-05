@@ -46,7 +46,7 @@ SHA-256 before use.
 | ENS (Haddadi 2021; 500 iterations) | 10 | 1 thread | Linkern |
 | ILS (NBITER=24, φ=0.2, V=1) | 10 | 1 thread | Linkern |
 | Standalone LKH (whole instance as one TSP) | 10 | 1 thread | LKH |
-| CBMLKH (irace config #135, `maxIterations` = 1000, `lkhMaxTime` = 20 % of the budget) | 10 | `T` threads per execution | LKH |
+| CBMLKH (irace config #135 with the changes below) | 10 | `T` threads per execution | LKH |
 
 Every LKH call (standalone, inside CBMLKH, and ENS/ILS if switched to LKH) uses
 `MOVE_TYPE = 5`, `PATCHING_C = 3`, `PATCHING_A = 2`, compiled in from
@@ -55,10 +55,17 @@ and the remaining time budget (`-t`). ENS and ILS use the parameters of their
 original codes.
 
 CBMLKH's parameters are the last completed irace race's best configuration
-(id 135, `tunning/output.txt`; checked by `tests/test_tuning.py`), with two
-exceptions: each trajectory stops after `maxIterations = 1000` (irace: 1 000 000) or
-the time budget, whichever comes first; and each LKH call is limited by
-`lkhMaxTime = 0.2 × soft limit` (1440 s for 7200 s) instead of irace's 300 s. They, and the LKH parameters above, are locked:
+(id 135, `tunning/output.txt`; checked by `tests/test_tuning.py`), with these
+exceptions:
+* `maxIterations = 1000` (irace: 1 000 000): a trajectory stops after 1000 iterations
+  or the time budget, whichever comes first;
+* `lkhMaxTime = 0.2 × soft limit` (1440 s for 7200 s; irace: 300 s);
+* every block handed to LKH spans **10 %–25 % of the columns**: PEAK/INTERVAL regions
+  start at 10 % (`minSegmentSizeFraction = maxSegmentSize = 0.10`) and may widen to
+  12.5 % (`maxSegmentSizeUpperBound = 0.125`, rounded down; one 1.5× diversification
+  step), and a MERGE of two regions is capped at 2 × 12.5 % = 25 % (irace: regions
+  30 %–60 %, so MERGE could reach the whole instance). PEAK windows are shifted, not clipped, at
+  the ends of the permutation so that they never fall below the minimum. They, and the LKH parameters above, are locked:
 `--method-params` cannot change them. The testing-only `--allow-param-overrides`
 lifts the lock, and its experiment is always marked partial.
 

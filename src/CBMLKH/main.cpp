@@ -164,6 +164,7 @@ static int run(int argc, char* argv[]) {
           {"minNeighborBias", resolved.minNeighborBias},
           {"neighborBiasDecayFactor", resolved.neighborBiasDecayFactor},
           {"minSegmentSize", resolved.minSegmentSize},
+          {"minSegmentSizeFraction", resolved.minSegmentSizeFraction},
           {"maxSegmentSizeFraction", resolved.maxSegmentSizeFraction},
           {"maxSegmentSizeUpperBoundFraction", resolved.maxSegmentSizeUpperBoundFraction},
           {"maxSegmentSize", resolved.maxSegmentSize},

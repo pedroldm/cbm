@@ -568,19 +568,16 @@ vector<CandidateRegion> CBMLKH::findPeakColumns(Solution& s, const AdaptiveParam
     vector<CandidateRegion> peaks;
     peaks.reserve(cols);
 
-    // The window spans [i - halfSize, i + halfSize], i.e. 2 * halfSize + 1
-    // columns; halving maxSegmentSize - 1 keeps it at maxSegmentSize at most.
-    int halfSize = (adaptive.maxSegmentSize - 1) / 2;
+    // Each window holds exactly maxSegmentSize columns (>= minSegmentSize by
+    // resolveSegmentSizes), centred on the peak and shifted, not clipped, at the
+    // ends of the permutation, so a peak near an end still yields a full window.
+    const int window = min(cols, adaptive.maxSegmentSize);
+    const int halfSize = (window - 1) / 2;
 
-    // Peaks are discovered right-to-left: scan candidate columns from the last
-    // to the first. Only the discovery order changes; each peak's window
-    // [i - halfSize, i + halfSize] and score are computed exactly as before, and
-    // the trailing sort yields the same ranked candidate set.
     for (int i = cols - 1; i >= 0; i--) {
         if (s.blocksCount[i] > 0) {
-            int start = max(0, i - halfSize);
-            int end = min(cols - 1, i + halfSize);
-            peaks.push_back({start, end, static_cast<double>(s.blocksCount[i])});
+            int start = clamp(i - halfSize, 0, cols - window);
+            peaks.push_back({start, start + window - 1, static_cast<double>(s.blocksCount[i])});
         }
     }
 

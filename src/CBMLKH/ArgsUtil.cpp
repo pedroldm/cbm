@@ -63,6 +63,7 @@ Config ArgsUtil::parseConfigFile(const string& path) {
     parsers["constructionBias"] = [&](const string& s) { cfg.constructionBias = stod(s); };
     parsers["neighborBias"] = [&](const string& s) { cfg.neighborBias = stod(s); };
     parsers["minSegmentSize"] = [&](const string& s) { cfg.minSegmentSize = stoi(s); };
+    parsers["minSegmentSizeFraction"] = [&](const string& s) { cfg.minSegmentSizeFraction = stod(s); };
     parsers["maxSegmentSize"] = [&](const string& s) { cfg.maxSegmentSizeFraction = stod(s); };
     parsers["minSegmentScore"] = [&](const string& s) { cfg.minSegmentScore = stod(s); };
 

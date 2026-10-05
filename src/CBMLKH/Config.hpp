@@ -62,6 +62,9 @@ struct Config {
     // loaded (e.g. maxSegmentSizeFraction = 0.1 on a 1000-column instance -> 100).
     double maxSegmentSizeFraction = 0.1;
     double maxSegmentSizeUpperBoundFraction = 0.2;
+    // Optional fractional minSegmentSize (e.g. 0.1 = 10% of the columns). 0 keeps
+    // the absolute minSegmentSize.
+    double minSegmentSizeFraction = 0.0;
 
     // Resolved absolute values (filled by resolveSegmentSizes; do not set directly).
     int maxSegmentSize = 0;
@@ -95,18 +98,20 @@ struct Config {
     BlockMovement blockMovement = RANDOM;
 
     // Turn the fractional segment-size knobs into absolute column counts. Called
-    // once the instance is parsed and `columnCount` is known. Both are floored at
-    // minSegmentSize (a window narrower than that is never enumerated, so a
+    // once the instance is parsed and `columnCount` is known. Both caps are floored
+    // at minSegmentSize (a window narrower than that is never enumerated, so a
     // smaller cap would leave the candidate pools empty) and capped at the column
     // count; the upper bound is additionally clamped to be at least the base size.
+    // The upper bound is rounded down, so a ceiling given as a fraction is never
+    // exceeded (MERGE spans up to twice it).
     void resolveSegmentSizes(int columnCount) {
+        if (minSegmentSizeFraction > 0.0) {
+            minSegmentSize = std::max(2, static_cast<int>(std::lround(minSegmentSizeFraction * columnCount)));
+        }
         const int floorSize = std::min(minSegmentSize, columnCount);
-        auto resolve = [&](double fraction) {
-            int size = static_cast<int>(std::lround(fraction * columnCount));
-            return std::clamp(size, floorSize, columnCount);
-        };
-        maxSegmentSize = resolve(maxSegmentSizeFraction);
-        maxSegmentSizeUpperBound = std::max(maxSegmentSize, resolve(maxSegmentSizeUpperBoundFraction));
+        auto resolve = [&](double size) { return std::clamp(static_cast<int>(size), floorSize, columnCount); };
+        maxSegmentSize = resolve(std::lround(maxSegmentSizeFraction * columnCount));
+        maxSegmentSizeUpperBound = std::max(maxSegmentSize, resolve(std::floor(maxSegmentSizeUpperBoundFraction * columnCount + 1e-9)));
     }
 
     // Reject configurations that would otherwise fail deep inside the search (or,
@@ -131,6 +136,8 @@ struct Config {
         require(minNeighborBias > 0.0 && minNeighborBias <= neighborBias, "minNeighborBias must be in (0, neighborBias].");
 
         require(minSegmentSize >= 2, "minSegmentSize must be >= 2.");
+        require(minSegmentSizeFraction >= 0.0 && minSegmentSizeFraction <= maxSegmentSizeFraction,
+                "minSegmentSizeFraction must be in [0, maxSegmentSize] (0 = use the absolute minSegmentSize).");
         require(maxSegmentSizeFraction > 0.0 && maxSegmentSizeFraction <= 1.0, "maxSegmentSize must be a fraction in (0, 1].");
         require(maxSegmentSizeUpperBoundFraction >= maxSegmentSizeFraction && maxSegmentSizeUpperBoundFraction <= 1.0,
                 "maxSegmentSizeUpperBound must be a fraction in [maxSegmentSize, 1].");

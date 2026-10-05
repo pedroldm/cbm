@@ -30,14 +30,25 @@ LKH_PARAMS = {"move_type": 5, "patching_c": 3, "patching_a": 2}
 # of the run's time budget: 0.2 * 7200 s = 1440 s.
 CBMLKH_LKH_TIME_FRACTION = 0.2
 
-# Iteration cap of every CBMLKH trajectory in the experiments (irace ran with
-# 1000000, i.e. effectively time-bounded).
-CBMLKH_MAX_ITERATIONS = 1000
+# Deliberate departures from the irace configuration below, for the experiments:
+#  * maxIterations 1000 (irace: 1000000, i.e. effectively time-bounded);
+#  * every block handed to LKH spans 10%..25% of the columns: regions (PEAK /
+#    INTERVAL windows) start at 10% (minSegmentSizeFraction, maxSegmentSize) and
+#    may widen to 12.5% (maxSegmentSizeUpperBound, rounded down; one 1.5x
+#    diversification step), and a MERGE of two regions is capped at 2 x 12.5% = 25%
+#    (irace: minSegmentSize 5 columns, regions 30%..60%, MERGE up to 100%).
+CBMLKH_EXPERIMENT_OVERRIDES = {
+    "maxIterations": 1000,
+    "minSegmentSizeFraction": 0.10,
+    "maxSegmentSize": 0.10,
+    "maxSegmentSizeUpperBound": 0.125,
+}
+CBMLKH_MAX_ITERATIONS = CBMLKH_EXPERIMENT_OVERRIDES["maxIterations"]
 
 # irace 4.2.0 best-so-far configuration 135 (last completed race, 2026-08-20;
-# tunning/output.txt), verified by tests/test_tuning.py. Deliberate deviations,
-# applied in DEFAULT_PARAMS: maxIterations (CBMLKH_MAX_ITERATIONS) and
-# lkhMaxTime (derived from the budget by plan.make_spec; 300 in irace).
+# tunning/output.txt), verified by tests/test_tuning.py. Deviations, applied in
+# DEFAULT_PARAMS: CBMLKH_EXPERIMENT_OVERRIDES above, and lkhMaxTime (derived from
+# the budget by plan.make_spec; 300 in irace).
 CBMLKH_IRACE_CONFIG = {
     "blockMovement": "MERGE",
     "maxIterations": 1000000,
@@ -72,7 +83,7 @@ DEFAULT_PARAMS: Dict[str, Dict[str, Any]] = {
     "lkh": {"tsp_backend": "lkh", "runs": 1, **LKH_PARAMS},
     # threads, maxTime, seed and paths are set by the runner; lkhMaxTime is
     # added by plan.make_spec from the time budget.
-    "cbmlkh": {"tsp_backend": "lkh", **CBMLKH_IRACE_CONFIG, "maxIterations": CBMLKH_MAX_ITERATIONS, **{"lkh_" + k: v for k, v in LKH_PARAMS.items()}},
+    "cbmlkh": {"tsp_backend": "lkh", **CBMLKH_IRACE_CONFIG, **CBMLKH_EXPERIMENT_OVERRIDES, **{"lkh_" + k: v for k, v in LKH_PARAMS.items()}},
 }
 
 
@@ -87,8 +98,8 @@ def estimate_resources(method: str, rows: int, cols: int, params: Dict[str, Any]
     """Peak memory and scratch-disk use, from the data structures each code allocates.
 
     Heuristic but conservative for ENS/ILS/LKH (dominated by explicit distance
-    matrices); for CBMLKH it assumes the typical largest sub-problem (a MERGE of
-    two base-size segments) per thread, not the diversification worst case.
+    matrices); for CBMLKH it assumes the largest possible sub-problem (a MERGE
+    of two maximally widened regions) in every thread at once.
     """
     slack = 64 * 1024**2
     n = cols
@@ -103,7 +114,8 @@ def estimate_resources(method: str, rows: int, cols: int, params: Dict[str, Any]
         # LKH's triangular int cost matrix + per-node structures. File: UPPER_ROW.
         return Estimate(2 * (n + 1) ** 2 + 2048 * n + slack, 3 * (n + 1) ** 2)
     if method == "cbmlkh":
-        seg = min(n, 2 * int(math.ceil(float(params.get("maxSegmentSize", 0.1)) * n)))
+        # MERGE spans at most two regions of maxSegmentSizeUpperBound columns.
+        seg = min(n, 2 * int(math.floor(float(params.get("maxSegmentSizeUpperBound", 1.0)) * n + 1e-9)))
         per_thread_mem = 2 * (seg + 1) ** 2 + 2048 * seg
         per_thread_disk = 6 * (seg + 1) ** 2
         return Estimate(threads * per_thread_mem + rows * n // 8 + slack, threads * per_thread_disk)
