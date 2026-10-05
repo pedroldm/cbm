@@ -3,6 +3,7 @@
 
 #include <climits>
 #include <limits>
+#include <string>
 #include <vector>
 
 #include "Solution.hpp"
@@ -27,8 +28,11 @@ struct Metrics {
     long acceptedMoves = 0;  // neighbors that improved on the best
     long rejectedMoves = 0;  // neighbors that did not
 
-    long lkhCalls = 0;        // applyLKH invocations (sub-segment optimizations)
-    long lkhCacheMisses = 0;  // applyLKH calls that actually shelled out to LKH
+    long lkhCalls = 0;          // applyLKH invocations (sub-segment optimizations)
+    long lkhCacheMisses = 0;    // applyLKH calls that actually shelled out to LKH
+    long lkhTimeLimitHits = 0;  // LKH runs stopped by TIME_LIMIT (their tours are load-dependent)
+
+    std::string stopReason;  // maxIterations, maxTime or histogram
 
     long diversifications = 0;  // adaptive.diversify() calls
 

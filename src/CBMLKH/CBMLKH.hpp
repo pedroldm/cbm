@@ -1,6 +1,7 @@
 #ifndef CBMLKH_HPP
 #define CBMLKH_HPP
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -29,6 +30,9 @@ class CBMLKH {
     int rows;  // number of matrix rows (l)
     int cols;  // number of columns / TSP cities (c)
     std::string instanceName;
+    unsigned long seedBase;  // cfg.seed, or a drawn base when cfg.seed == 0
+
+    uint32_t trajectorySeed(int globalIndex) const;
 
     CBMLKH(const Config& cfg, std::shared_ptr<LKHCache> cache);
 

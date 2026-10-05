@@ -17,19 +17,29 @@ struct Config {
     // consumes. Diagnostics keep going to stderr, so stdout holds just the number.
     bool iRace = false;
 
-    // Override LKHWrapper's compiled-in defaults. Empty = keep the default.
-    // lkhTmpDir must be unique per concurrent process (see LKHWrapper::configure).
-    std::string lkhPath;
-    std::string lkhTmpDir;
+    // Where to write the JSON report (atomically). Empty = stdout.
+    std::string outputPath;
 
-    // RNG seed. 0 (the default) seeds each thread from random_device, i.e. runs
-    // are not reproducible. Any other value makes trajectory i use seed + i.
+    // LKH executable and the parent directory for scratch files. Each process
+    // creates (and removes) its own private subdirectory under lkhTmpDir, so
+    // concurrent processes may share it.
+    std::string lkhPath;
+    std::string lkhTmpDir = "/tmp";
+
+    // RNG seed. 0 (the default) draws a nondeterministic base seed, i.e. runs
+    // are not reproducible. Any other value gives trajectory i the seed
+    // cbm_derive_seed(seed, trajectoryOffset + i), and every LKH sub-problem a
+    // seed derived from (seed, sub-problem contents); see CBMLKH::applyLKH.
     //
-    // Caveat: this only pins the search's random choices. A run bounded by
-    // maxTime still executes a machine- and load-dependent number of iterations,
-    // so full replay additionally requires the run to be bounded by
-    // maxIterations. LKH itself is deterministic on identical input.
+    // Caveat: this pins every random choice, but a run bounded by maxTime (or
+    // whose LKH calls hit lkhMaxTime) still executes a load-dependent amount of
+    // work, so exact replay additionally requires neither bound to bind.
     unsigned long seed = 0;
+
+    // Global index of this process's first trajectory. Lets one logical set of
+    // repetitions be split over several executions (e.g. 10 trajectories as
+    // two runs of 5 threads) with exactly the seeds a single run would use.
+    int trajectoryOffset = 0;
 
     int threads = 1;
     int maxIterations = 1000;
@@ -110,6 +120,8 @@ struct Config {
 
         require(!instancePath.empty(), "instancePath must be set.");
         require(threads >= 1, "threads must be >= 1.");
+        require(trajectoryOffset >= 0, "trajectoryOffset must be >= 0.");
+        require(!lkhPath.empty(), "lkhPath must be set (config key or LKH_PATH environment variable).");
         require(maxIterations >= 1, "maxIterations must be >= 1.");
         require(maxTime >= 1, "maxTime must be >= 1 (seconds).");
         require(lkhMaxTime >= 1, "lkhMaxTime must be >= 1 (seconds).");

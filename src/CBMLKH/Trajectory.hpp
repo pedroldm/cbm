@@ -2,6 +2,7 @@
 #define TRAJECTORY_HPP
 
 #include <chrono>
+#include <cstdint>
 #include <iostream>  // Added for std::ostream
 #include <vector>
 
@@ -32,6 +33,8 @@ class Trajectory {
     Solution bestSolution;
     std::vector<TrajectoryEntry> history;
     Metrics metrics;
+    int index = 0;      // global trajectory index (Config::trajectoryOffset + thread slot)
+    uint32_t seed = 0;  // seed of this trajectory's RNG stream
 
     explicit Trajectory(const Solution& initial) : currentSolution(initial), bestSolution(initial) {}
     void record(Solution s, int iteration, int elapsedMs);

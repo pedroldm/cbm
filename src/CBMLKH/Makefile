@@ -24,7 +24,7 @@ OBJS_PRD = $(SRCS:.cpp=.prd.o)
 OBJS_VERIFY = $(SRCS:.cpp=.verify.o)
 
 # Header files
-HEADERS = ArgsUtil.hpp Config.hpp ColumnStore.hpp LKHCache.hpp Validator.hpp Trajectory.hpp LKHWrapper.hpp CBMLKH.hpp Solution.hpp PrintUtil.hpp Metrics.hpp Flatness.hpp ../IO/json.hpp
+HEADERS = ../common/cbm_lkh_params.h ../common/cbm_seed.h ../common/cbm_spawn.h ArgsUtil.hpp Config.hpp ColumnStore.hpp LKHCache.hpp Validator.hpp Trajectory.hpp LKHWrapper.hpp CBMLKH.hpp Solution.hpp PrintUtil.hpp Metrics.hpp Flatness.hpp ../IO/json.hpp
 
 # Target executable
 TARGET = main
@@ -34,6 +34,10 @@ TARGET_VERIFY = main_verify
 
 # Default target (development build)
 dev: $(TARGET)
+
+# Standalone LKH baseline (whole instance as one TSP)
+lkh_standalone: lkh_standalone.cpp ../common/cbm_lkh_params.h ColumnStore.hpp ../common/cbm_spawn.h ../IO/json.hpp
+	$(CXX) $(CXXFLAGS_PRD) -o lkh_standalone lkh_standalone.cpp
 
 # Debug target
 debug: $(TARGET_DEBUG)
@@ -79,7 +83,7 @@ $(TARGET_VERIFY): $(OBJS_VERIFY)
 # Clean up build files
 clean:
 	rm -f $(OBJS) $(OBJS_DEBUG) $(OBJS_PRD) $(OBJS_VERIFY) \
-	$(TARGET) $(TARGET_DEBUG) $(TARGET_PRD) $(TARGET_VERIFY)
+	$(TARGET) $(TARGET_DEBUG) $(TARGET_PRD) $(TARGET_VERIFY) lkh_standalone
 
 # Phony targets
-.PHONY: dev debug prd verify clean
+.PHONY: dev debug prd verify clean lkh_standalone

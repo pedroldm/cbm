@@ -44,3 +44,12 @@ main_debug
 
 # debug information files
 *.dwo
+
+# Solver binaries built by the top-level Makefile
+ENS/ENS
+ILS/ils
+src/CBMLKH/lkh_standalone
+
+# Experiment artifacts
+outputs/
+__pycache__/

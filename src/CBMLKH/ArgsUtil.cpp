@@ -1,6 +1,7 @@
 #include "ArgsUtil.hpp"
 
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <stdexcept>
@@ -50,7 +51,9 @@ Config ArgsUtil::parseConfigFile(const string& path) {
     parsers["iRace"] = [&](const string& s) { cfg.iRace = parseBool(s); };
     parsers["lkhPath"] = [&](const string& s) { cfg.lkhPath = s; };
     parsers["lkhTmpDir"] = [&](const string& s) { cfg.lkhTmpDir = s; };
+    parsers["outputPath"] = [&](const string& s) { cfg.outputPath = s; };
     parsers["seed"] = [&](const string& s) { cfg.seed = stoul(s); };
+    parsers["trajectoryOffset"] = [&](const string& s) { cfg.trajectoryOffset = stoi(s); };
     parsers["threads"] = [&](const string& s) { cfg.threads = stoi(s); };
     parsers["maxIterations"] = [&](const string& s) { cfg.maxIterations = stoi(s); };
     parsers["maxTime"] = [&](const string& s) { cfg.maxTime = stoi(s); };
@@ -136,6 +139,11 @@ Config ArgsUtil::parseConfigFile(const string& path) {
         } else {
             throw runtime_error("Unknown configuration option at line " + to_string(lineNumber) + ": " + key);
         }
+    }
+
+    // No compiled-in machine-specific path: fall back to the environment.
+    if (cfg.lkhPath.empty()) {
+        if (const char* env = getenv("LKH_PATH")) cfg.lkhPath = env;
     }
 
     cfg.validate();

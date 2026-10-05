@@ -7,10 +7,23 @@ iRace=false
 threads=8
 blockMovement=RANDOM
 
-# 0 = cada thread e' semeada por random_device (execucao nao reproduzivel).
-# Qualquer outro valor: a trajetoria i usa seed + i. Para replay exato a
-# execucao tambem precisa ser limitada por maxIterations, nao por maxTime.
+# 0 = semente base nao deterministica (execucao nao reproduzivel; a semente
+# sorteada aparece em config.seedBase no relatorio). Qualquer outro valor: a
+# trajetoria i usa cbm_derive_seed(seed, trajectoryOffset + i) e cada
+# subproblema do LKH usa uma semente derivada de (seed, colunas do subproblema).
+# Replay exato exige que nem maxTime nem lkhMaxTime limitem a execucao
+# (veja trajectories[].lkhTimeLimitHits no relatorio).
 seed=0
+# Indice global da primeira trajetoria deste processo: permite dividir N
+# repeticoes em varias execucoes com exatamente as mesmas sementes.
+trajectoryOffset=0
+
+# Executavel do LKH (ou variavel de ambiente LKH_PATH) e diretorio-pai dos
+# arquivos temporarios; cada processo cria e remove seu proprio subdiretorio.
+lkhPath=/home/pedroldm/MSc/cbm/src/LKH3/LKH
+lkhTmpDir=/tmp
+# Relatorio JSON: vazio = stdout; caso contrario escrito atomicamente no arquivo.
+# outputPath=/caminho/relatorio.json
 
 maxIterations=1000
 # Segundos

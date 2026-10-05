@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cbm-run-record/1.0",
+  "title": "CBM experiment repetition record",
+  "description": "One record per (method, instance, repetition). null always means 'not available' (never zero). Written by experiments/cbm_experiments; see experiments/README.md for field semantics.",
+  "type": "object",
+  "required": ["schema_version", "run_id", "job_id", "experiment", "method", "instance", "repetition", "seeds", "status",
+               "objective", "solution", "timing", "stopping", "search", "tsp_solver", "execution", "error", "software", "method_stats"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string"},
+    "job_id": {"type": "string"},
+    "experiment": {
+      "type": "object",
+      "required": ["name", "fingerprint", "partial"],
+      "properties": {"name": {"type": "string"}, "fingerprint": {"type": "string"}, "partial": {"type": "boolean"}}
+    },
+    "method": {
+      "type": "object",
+      "required": ["id", "name", "tsp_backend", "parameters"],
+      "properties": {
+        "id": {"enum": ["ens", "ils", "lkh", "cbmlkh"]},
+        "name": {"type": "string"},
+        "tsp_backend": {"enum": ["linkern", "lkh"]},
+        "parameters": {"type": "object"}
+      }
+    },
+    "instance": {
+      "type": "object",
+      "required": ["name", "path", "sha256", "rows", "cols"],
+      "properties": {"name": {"type": "string"}, "path": {"type": "string"}, "sha256": {"type": "string"},
+                     "rows": {"type": "integer"}, "cols": {"type": "integer"}}
+    },
+    "repetition": {"type": "integer", "minimum": 0},
+    "seeds": {
+      "type": "object",
+      "required": ["root", "run", "derivation", "derived"],
+      "properties": {"root": {"type": "integer"}, "run": {"type": "integer"}, "derivation": {"type": "string"},
+                     "derived": {"type": "object"}}
+    },
+    "status": {"enum": ["completed", "failed", "hard_timeout", "interrupted"]},
+    "objective": {
+      "type": "object",
+      "required": ["name", "sense", "value", "blocks", "validated", "initial_value"],
+      "properties": {
+        "name": {"const": "one_blocks"},
+        "sense": {"const": "minimize"},
+        "value": {"type": ["integer", "null"]},
+        "blocks": {"type": ["integer", "null"]},
+        "validated": {"type": ["boolean", "null"]},
+        "initial_value": {"type": ["integer", "null"]}
+      }
+    },
+    "solution": {
+      "type": "object",
+      "required": ["permutation_file"],
+      "properties": {"permutation_file": {"type": ["string", "null"]}}
+    },
+    "timing": {
+      "type": "object",
+      "required": ["started_at", "finished_at", "wall_time_s", "method_time_s", "time_to_best_s", "soft_limit_s",
+                   "hard_limit_s", "soft_limit_reached", "soft_limit_reached_at_s"],
+      "properties": {
+        "started_at": {"type": ["string", "null"]},
+        "finished_at": {"type": ["string", "null"]},
+        "wall_time_s": {"type": ["number", "null"]},
+        "method_time_s": {"type": ["number", "null"]},
+        "time_to_best_s": {"type": ["number", "null"]},
+        "soft_limit_s": {"type": "number"},
+        "hard_limit_s": {"type": "number"},
+        "soft_limit_reached": {"type": "boolean"},
+        "soft_limit_reached_at_s": {"type": ["number", "null"]}
+      }
+    },
+    "stopping": {
+      "type": "object",
+      "required": ["criteria", "reason", "method_time_limit_reached"],
+      "properties": {"criteria": {"type": "object"}, "reason": {"type": ["string", "null"]},
+                     "method_time_limit_reached": {"type": ["boolean", "null"]}}
+    },
+    "search": {
+      "type": "object",
+      "required": ["iterations", "improvements"],
+      "properties": {"iterations": {"type": ["integer", "null"]}, "improvements": {"type": ["integer", "null"]}}
+    },
+    "tsp_solver": {
+      "type": "object",
+      "required": ["name", "calls", "time_s", "time_limit_hits", "invalid_tours"],
+      "properties": {
+        "name": {"enum": ["linkern", "lkh"]},
+        "calls": {"type": ["integer", "null"]},
+        "time_s": {"type": ["number", "null"]},
+        "time_limit_hits": {"type": ["integer", "null"]},
+        "invalid_tours": {"type": ["integer", "null"]}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["attempt", "exit_code", "signal", "cpus", "cpu_ids", "threads", "host", "command", "stdout_log",
+                   "stderr_log", "native_output"],
+      "properties": {
+        "attempt": {"type": "integer"},
+        "exit_code": {"type": ["integer", "null"]},
+        "signal": {"type": ["integer", "null"]},
+        "cpus": {"type": "integer"},
+        "cpu_ids": {"type": ["array", "null"], "items": {"type": "integer"}},
+        "threads": {"type": "integer"},
+        "host": {"type": "string"},
+        "command": {"type": "array", "items": {"type": "string"}},
+        "stdout_log": {"type": ["string", "null"]},
+        "stderr_log": {"type": ["string", "null"]},
+        "native_output": {"type": ["string", "null"]}
+      }
+    },
+    "error": {
+      "type": ["object", "null"],
+      "required": ["type", "message"],
+      "properties": {"type": {"type": "string"}, "message": {"type": "string"}, "stderr_tail": {"type": ["string", "null"]}}
+    },
+    "software": {"type": "object", "required": ["runner_version", "git", "python", "platform", "binaries"]},
+    "method_stats": {"type": ["object", "null"]}
+  }
+}

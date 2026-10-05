@@ -1,0 +1,399 @@
+#------------------------------------------------------------------------------
+# irace: An implementation in R of (Elitist) Iterated Racing
+# Version: 4.2.0.b50b134
+# Copyright (C) 2010-2025
+# Manuel Lopez-Ibanez     <manuel.lopez-ibanez@manchester.ac.uk>
+# Jeremie Dubois-Lacoste
+# Leslie Perez Caceres    <leslie.perez.caceres@ulb.ac.be>
+#
+# This is free software, and you are welcome to redistribute it under certain
+# conditions.  See the GNU General Public License for details. There is NO
+# WARRANTY; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# irace builds upon previous code from the race package:
+#     race: Racing methods for the selection of the best
+#     Copyright (C) 2003 Mauro Birattari
+#------------------------------------------------------------------------------
+# installed at: /home/pedro/R/x86_64-pc-linux-gnu-library/4.1/irace
+# called with: 
+Warning: == irace == A default scenario file '/home/pedro/cbm/tunning/scenario.txt' has been found and will be read.
+# 2026-08-06 14:43:06 -03: Reading parameter file '/home/pedro/cbm/tunning/parameters.txt'.
+# --- Parameters Hierarchy ---
+                   Parameter Level                Depends.on
+1                    threads     1                   threads
+2                    maxTime     1                   maxTime
+3              maxIterations     1             maxIterations
+4              blockMovement     1             blockMovement
+5             maxSegmentSize     1            maxSegmentSize
+6   maxSegmentSizeUpperBound     1  maxSegmentSizeUpperBound
+7    segmentSizeGrowthFactor     1   segmentSizeGrowthFactor
+8             minSegmentSize     1            minSegmentSize
+9               neighborBias     1              neighborBias
+10           minNeighborBias     1           minNeighborBias
+11   neighborBiasDecayFactor     1   neighborBiasDecayFactor
+12           minSegmentScore     2           minSegmentScore
+13 minSegmentScoreLowerBound     2 minSegmentScoreLowerBound
+14   segmentScoreDecayFactor     2   segmentScoreDecayFactor
+15        adaptationInterval     1        adaptationInterval
+16                lkhMaxTime     1                lkhMaxTime
+17          constructionBias     1          constructionBias
+# ------------------------
+## irace scenario:
+scenarioFile = "/home/pedro/cbm/tunning/scenario.txt"
+execDir = "/home/pedro/cbm/tunning"
+parameterFile = "/home/pedro/cbm/tunning/parameters.txt"
+parameters = <environment>
+initConfigurations = NULL
+configurationsFile = "/home/pedro/cbm/tunning/configurations.txt"
+logFile = "/home/pedro/cbm/tunning/irace_log.Rdata"
+recoveryFile = ""
+instances = c("/home/pedro/cbm/instances/cbm_1100_13000_2", "/home/pedro/cbm/instances/cbm_3000_40000_1", "/home/pedro/cbm/instances/cbm_4500_35000_3", "/home/pedro/cbm/instances/cbm_3500_25000_3", "/home/pedro/cbm/instances/cbm_5000_40000_2", "/home/pedro/cbm/instances/cbm_1200_13000_5", "/home/pedro/cbm/instances/cbm_4000_35000_2", "/home/pedro/cbm/instances/cbm_4000_40000_1", "/home/pedro/cbm/instances/cbm_1400_12000_10", "/home/pedro/cbm/instances/cbm_5000_20000_3", "/home/pedro/cbm/instances/g2", "/home/pedro/cbm/instances/cbm_1200_14000_15", "/home/pedro/cbm/instances/h2", "/home/pedro/cbm/instances/cbm_1100_13000_15", "/home/pedro/cbm/instances/cbm_4000_25000_2", "/home/pedro/cbm/instances/cbm_1200_15000_5", "/home/pedro/cbm/instances/cbm_1300_13000_2", "/home/pedro/cbm/instances/d5", "/home/pedro/cbm/instances/cbm_1200_11000_10", "/home/pedro/cbm/instances/cbm_2000_25000_3", "/home/pedro/cbm/instances/cbm_4000_20000_3", "/home/pedro/cbm/instances/scph3", "/home/pedro/cbm/instances/cbm_5000_35000_2", "/home/pedro/cbm/instances/e4", "/home/pedro/cbm/instances/cbm_1500_15000_5", "/home/pedro/cbm/instances/cbm_1200_15000_15", "/home/pedro/cbm/instances/cbm_1300_15000_10", "/home/pedro/cbm/instances/cbm_5000_30000_2", "/home/pedro/cbm/instances/h1", "/home/pedro/cbm/instances/cbm_3000_35000_2", "/home/pedro/cbm/instances/cbm_2500_25000_1", "/home/pedro/cbm/instances/c4", "/home/pedro/cbm/instances/scpe4", "/home/pedro/cbm/instances/cbm_1500_11000_15", "/home/pedro/cbm/instances/cbm_2000_50000_3", "/home/pedro/cbm/instances/cbm_3500_30000_3", "/home/pedro/cbm/instances/cbm_1300_14000_5", "/home/pedro/cbm/instances/cbm_4500_50000_3", "/home/pedro/cbm/instances/cbm_3000_30000_2", "/home/pedro/cbm/instances/cbm_4000_25000_1", "/home/pedro/cbm/instances/cbm_1100_14000_10", "/home/pedro/cbm/instances/cbm_1500_12000_2", "/home/pedro/cbm/instances/cbm_3500_35000_2", "/home/pedro/cbm/instances/cbm_3000_50000_1", "/home/pedro/cbm/instances/scpb4", "/home/pedro/cbm/instances/b1", "/home/pedro/cbm/instances/cbm_5000_25000_2", "/home/pedro/cbm/instances/cbm_3000_40000_3", "/home/pedro/cbm/instances/g1", "/home/pedro/cbm/instances/cbm_3000_35000_3")
+trainInstancesDir = ""
+trainInstancesFile = "/home/pedro/cbm/tunning/instances-list.txt"
+sampleInstances = TRUE
+testInstancesDir = ""
+testInstancesFile = ""
+testInstances = NULL
+testNbElites = 1L
+testIterationElites = FALSE
+testType = "friedman"
+firstTest = 5L
+blockSize = 1L
+eachTest = 1L
+targetRunner = "/home/pedro/cbm/tunning/target-runner"
+targetRunnerLauncher = ""
+targetCmdline = "{configurationID} {instanceID} {seed} {instance} {bound} {targetRunnerArgs}"
+targetRunnerRetries = 0L
+targetRunnerTimeout = 0L
+targetRunnerData = ""
+targetRunnerParallel = NULL
+targetEvaluator = NULL
+deterministic = FALSE
+maxExperiments = 1000L
+minExperiments = NA_character_
+maxTime = 0L
+budgetEstimation = 0.05
+minMeasurableTime = 0.01
+parallel = 8L
+loadBalancing = TRUE
+mpi = FALSE
+batchmode = "0"
+quiet = FALSE
+debugLevel = 1L
+seed = NA_character_
+softRestart = TRUE
+softRestartThreshold = 1e-04
+elitist = TRUE
+elitistNewInstances = 1L
+elitistLimit = 2L
+repairConfiguration = NULL
+capping = FALSE
+cappingAfterFirstTest = FALSE
+cappingType = "median"
+boundType = "candidate"
+boundMax = NULL
+boundDigits = 0L
+boundPar = 1L
+boundAsTimeout = TRUE
+postselection = TRUE
+aclib = FALSE
+nbIterations = 0L
+nbExperimentsPerIteration = 0L
+minNbSurvival = 0L
+nbConfigurations = 0L
+mu = 5L
+confidence = 0.95
+## end of irace scenario
+# 2026-08-06 14:43:06 -03: Read 3 configuration(s) from file '/home/pedro/cbm/tunning/configurations.txt'
+# 2026-08-06 14:43:06 -03: Initialization
+# Elitist race
+# Elitist new instances: 1
+# Elitist limit: 2
+# nbIterations: 5
+# minNbSurvival: 5
+# nbParameters: 8
+# seed: 2000904662
+# confidence level: 0.95
+# budget: 1000
+# mu: 5
+# deterministic: FALSE
+
+# 2026-08-06 14:43:06 -03: Iteration 1 of 5
+# experimentsUsed: 0
+# remainingBudget: 1000
+# currentBudget: 200
+# nbConfigurations: 33
+# 2026-08-06 14:43:06 -03: Sample 30 configurations from Sobol distribution
+# 2026-08-06 14:43:06 -03: Launch race
+# Markers:
+     x No test is performed.
+     c Configurations are discarded only due to capping.
+     - The test is performed and some configurations are discarded.
+     = The test is performed but no configuration is discarded.
+     ! The test is performed and configurations could be discarded but elite configurations are preserved.
+     . All alive configurations are elite and nothing is discarded.
+
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+| |   Instance|      Alive|       Best|       Mean best| Exp so far|  W time|  rho|KenW|  Qvar|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+|x|          1|         33|         11|     884.0000000|         33|08:12:42|   NA|  NA|    NA|
+|x|          2|         33|         11|     526965.5000|         66|10:09:28|+0.54|0.77|0.5258|
+|x|          3|         33|         11|     1112853.333|         99|15:28:47|+0.41|0.61|0.5563|
+|x|          4|         33|         11|     1155700.750|        132|11:06:26|+0.45|0.59|0.5293|
+|-|          5|          5|         11|     1486570.400|        165|16:26:17|+0.27|0.42|0.6224|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+# Stopped because number of alive configurations (5) <= minimum number of configurations (5)
+Best-so-far configuration:          11    mean value:      1486570.400
+Description of the best-so-far configuration:
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA
+
+# 2026-08-09 04:06:49 -03: Extracting elites
+# 2026-08-09 04:06:49 -03: Elite configurations (first number is the configuration ID; listed from best to worst according to the sum of ranks):
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT. .RANK.           .WEIGHT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA    7.5 0.3333333333333333
+13   13       1    7200       1000000      INTERVAL           0.30                      1.0                     1.5              5          3.0             0.1                    0.90             2.0                      0.15                    0.85                 20        900              2.5       NA   14.0 0.2666666666666667
+18   18       1    7200       1000000        RANDOM           0.40                     0.40                     1.0              5          1.5             0.1                    0.90             1.5                      0.15                    0.85                 20        900              2.5       NA   15.5 0.2000000000000000
+25   25       1    7200       1000000         MERGE           0.20                      1.0                     1.5              5          1.5             0.1                    0.90             0.5                      0.15                    0.85                  5        300              2.5       NA   17.5 0.1333333333333333
+27   27       1    7200       1000000        RANDOM           0.30                     0.80                     2.0              5          2.0             0.1                    0.90             3.0                      0.15                    0.85                 10        900              2.5       NA   20.5 0.0666666666666667
+# 2026-08-09 04:06:49 -03: Initialise model
+# 2026-08-09 04:06:49 -03: End of iteration 1
+# 2026-08-09 04:06:49 -03: Iteration 2 of 5
+# experimentsUsed: 165
+# remainingBudget: 835
+# currentBudget: 208
+# nbConfigurations: 33
+# 2026-08-09 04:06:49 -03: Update model
+# 2026-08-09 04:06:49 -03: Sample 28 configurations from model
+# 2026-08-09 04:06:49 -03: Computing similarity of configurations . DONE
+# 2026-08-09 04:06:49 -03: Launch race
+# Markers:
+     x No test is performed.
+     c Configurations are discarded only due to capping.
+     - The test is performed and some configurations are discarded.
+     = The test is performed but no configuration is discarded.
+     ! The test is performed and configurations could be discarded but elite configurations are preserved.
+     . All alive configurations are elite and nothing is discarded.
+
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+| |   Instance|      Alive|       Best|       Mean best| Exp so far|  W time|  rho|KenW|  Qvar|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+|x|          6|         33|         11|     1605769.000|         33|10:12:11|   NA|  NA|    NA|
+|x|          2|         33|         11|     1329408.000|         61|08:19:31|+0.70|0.85|0.3129|
+|x|          4|         33|         56|     1312907.000|         89|10:46:45|+0.57|0.71|0.3906|
+|x|          5|         33|         11|     1688277.000|        117|12:00:47|+0.38|0.54|0.5743|
+|-|          3|          9|         11|     1807547.400|        145|13:09:05|+0.10|0.28|0.8049|
+|=|          1|          9|         11|     1506436.833|        149|02:03:01|+0.10|0.25|0.7876|
+|=|          7|          9|         11|     1291322.000|        158|02:30:43|+0.06|0.19|0.7923|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+# Stopped because tests without elimination (2) >= elitistLimit (2)
+Best-so-far configuration:          11    mean value:      1291322.000
+Description of the best-so-far configuration:
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA
+
+# 2026-08-11 15:08:56 -03: Extracting elites
+# 2026-08-11 15:08:56 -03: Elite configurations (first number is the configuration ID; listed from best to worst according to the sum of ranks):
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT. .RANK.           .WEIGHT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA   20.5 0.3333333333333333
+56   56       1    7200       1000000        RANDOM           0.30                     0.80                     1.5              5          2.0             0.1                    0.90             2.0                      0.15                    0.85                  5        300              2.5       13   29.5 0.2666666666666667
+18   18       1    7200       1000000        RANDOM           0.40                     0.40                     1.0              5          1.5             0.1                    0.90             1.5                      0.15                    0.85                 20        900              2.5       NA   31.5 0.2000000000000000
+50   50       1    7200       1000000         MERGE           0.25                     0.60                    1.25              5          0.5             0.1                    0.90             1.5                      0.15                    0.85                 20        600              2.5       11   32.5 0.1333333333333333
+13   13       1    7200       1000000      INTERVAL           0.30                      1.0                     1.5              5          3.0             0.1                    0.90             2.0                      0.15                    0.85                 20        900              2.5       NA   35.5 0.0666666666666667
+# 2026-08-11 15:08:56 -03: End of iteration 2
+# 2026-08-11 15:08:56 -03: Iteration 3 of 5
+# experimentsUsed: 323
+# remainingBudget: 677
+# currentBudget: 225
+# nbConfigurations: 32
+# 2026-08-11 15:08:56 -03: Update model
+# 2026-08-11 15:08:56 -03: Sample 27 configurations from model
+# 2026-08-11 15:08:57 -03: Computing similarity of configurations . DONE
+# 2026-08-11 15:08:57 -03: Soft restart: 74 88 !
+# 2026-08-11 15:08:57 -03: Launch race
+# Markers:
+     x No test is performed.
+     c Configurations are discarded only due to capping.
+     - The test is performed and some configurations are discarded.
+     = The test is performed but no configuration is discarded.
+     ! The test is performed and configurations could be discarded but elite configurations are preserved.
+     . All alive configurations are elite and nothing is discarded.
+
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+| |   Instance|      Alive|       Best|       Mean best| Exp so far|  W time|  rho|KenW|  Qvar|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+|x|          8|         32|         13|     1212132.000|         32|08:30:21|   NA|  NA|    NA|
+|x|          3|         32|         84|     1753549.000|         59|13:19:30|+0.34|0.67|0.5728|
+|x|          5|         32|         11|     2103307.000|         86|11:06:55|+0.38|0.59|0.5376|
+|x|          2|         32|         11|     1840742.000|        113|08:13:24|+0.46|0.60|0.4803|
+|-|          7|         18|         13|     1475900.200|        140|03:58:55|-0.00|0.20|0.9342|
+|=|          6|         18|         11|     1494895.000|        153|04:13:52|+0.04|0.20|0.9158|
+|-|          4|          9|         11|     1464801.857|        166|05:18:07|-0.01|0.13|0.8865|
+|=|          1|          9|         11|     1281812.125|        170|02:01:58|+0.02|0.14|0.8697|
+|=|          9|          9|         11|     1312072.667|        179|04:02:04|+0.03|0.14|0.8610|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+# Stopped because tests without elimination (2) >= elitistLimit (2)
+Best-so-far configuration:          11    mean value:      1312072.667
+Description of the best-so-far configuration:
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA
+
+# 2026-08-14 03:54:08 -03: Extracting elites
+# 2026-08-14 03:54:08 -03: Elite configurations (first number is the configuration ID; listed from best to worst according to the sum of ranks):
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT. .RANK.           .WEIGHT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA   27.0 0.3333333333333333
+79   79       1    7200       1000000         MERGE           0.25                     0.80                     1.5              5          2.0             0.1                    0.90             1.5                      0.15                    0.85                  5        300              2.5       56   37.5 0.2666666666666667
+62   62       1    7200       1000000         MERGE           0.30                     0.40                    1.25              5          0.5             0.1                    0.90             1.0                      0.15                    0.85                 20        600              2.5       50   42.5 0.2000000000000000
+56   56       1    7200       1000000        RANDOM           0.30                     0.80                     1.5              5          2.0             0.1                    0.90             2.0                      0.15                    0.85                  5        300              2.5       13   44.5 0.1333333333333333
+13   13       1    7200       1000000      INTERVAL           0.30                      1.0                     1.5              5          3.0             0.1                    0.90             2.0                      0.15                    0.85                 20        900              2.5       NA   44.5 0.0666666666666667
+# 2026-08-14 03:54:08 -03: End of iteration 3
+# 2026-08-14 03:54:08 -03: Iteration 4 of 5
+# experimentsUsed: 502
+# remainingBudget: 498
+# currentBudget: 249
+# nbConfigurations: 29
+# 2026-08-14 03:54:08 -03: Update model
+# 2026-08-14 03:54:08 -03: Sample 24 configurations from model
+# 2026-08-14 03:54:08 -03: Computing similarity of configurations . DONE
+# 2026-08-14 03:54:08 -03: Soft restart: 92 100 102 106 99 101 !
+# 2026-08-14 03:54:08 -03: Launch race
+# Markers:
+     x No test is performed.
+     c Configurations are discarded only due to capping.
+     - The test is performed and some configurations are discarded.
+     = The test is performed but no configuration is discarded.
+     ! The test is performed and configurations could be discarded but elite configurations are preserved.
+     . All alive configurations are elite and nothing is discarded.
+
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+| |   Instance|      Alive|       Best|       Mean best| Exp so far|  W time|  rho|KenW|  Qvar|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+|x|         10|         29|         11|     1806952.000|         29|16:40:35|   NA|  NA|    NA|
+|x|          4|         29|         11|     1545597.500|         53|07:48:58|+0.12|0.56|0.8290|
+|x|          1|         29|         11|     1030693.000|         77|06:03:51|+0.32|0.54|0.6714|
+|x|          9|         29|         11|     1161559.000|        101|06:20:59|+0.45|0.59|0.5484|
+|-|          6|         10|         11|     1250401.000|        125|06:17:15|+0.13|0.30|0.8443|
+|=|          8|         10|         11|     1244541.333|        130|02:05:42|-0.06|0.12|0.9923|
+|=|          2|         10|         11|     1217185.000|        135|02:03:32|-0.04|0.11|0.9950|
+|=|          3|         10|         11|     1350615.500|        140|03:56:59|-0.00|0.12|0.9466|
+|=|          7|         10|         11|     1200617.444|        145|01:43:15|-0.03|0.09|0.9262|
+|=|          5|         10|         11|     1361560.600|        150|04:32:15|-0.03|0.08|0.9333|
+|=|         11|         10|         11|     1237863.636|        160|04:00:19|-0.03|0.06|0.9184|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+# Stopped because tests without elimination (2) >= elitistLimit (2)
+Best-so-far configuration:          11    mean value:      1237863.636
+Description of the best-so-far configuration:
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA
+
+# 2026-08-16 17:27:54 -03: Extracting elites
+# 2026-08-16 17:27:54 -03: Elite configurations (first number is the configuration ID; listed from best to worst according to the sum of ranks):
+   .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT. .RANK.           .WEIGHT.
+11   11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA   42.5 0.3333333333333333
+98   98       1    7200       1000000         MERGE           0.25                     0.80                     1.5              5          1.5             0.1                    0.90             1.5                      0.15                    0.85                  5        300              2.5       79   54.0 0.2666666666666667
+96   96       1    7200       1000000         MERGE           0.25                     0.80                    1.25              5          2.0             0.1                    0.90             2.0                      0.15                    0.85                  5        300              2.5       79   56.5 0.2000000000000000
+56   56       1    7200       1000000        RANDOM           0.30                     0.80                     1.5              5          2.0             0.1                    0.90             2.0                      0.15                    0.85                  5        300              2.5       13   61.0 0.1333333333333333
+92   92       1    7200       1000000         MERGE           0.20                     0.60                    1.25              5          2.0             0.1                    0.90             1.5                      0.15                    0.85                  5        300              2.5       79   62.0 0.0666666666666667
+# 2026-08-16 17:27:54 -03: End of iteration 4
+# 2026-08-16 17:27:54 -03: Iteration 5 of 5
+# experimentsUsed: 662
+# remainingBudget: 338
+# currentBudget: 338
+# nbConfigurations: 32
+# 2026-08-16 17:27:54 -03: Update model
+# 2026-08-16 17:27:54 -03: Sample 27 configurations from model
+# 2026-08-16 17:27:54 -03: Computing similarity of configurations . DONE
+# 2026-08-16 17:27:54 -03: Soft restart: 127 132 96 121 119 128 133 !
+# 2026-08-16 17:27:54 -03: Launch race
+# Markers:
+     x No test is performed.
+     c Configurations are discarded only due to capping.
+     - The test is performed and some configurations are discarded.
+     = The test is performed but no configuration is discarded.
+     ! The test is performed and configurations could be discarded but elite configurations are preserved.
+     . All alive configurations are elite and nothing is discarded.
+
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+| |   Instance|      Alive|       Best|       Mean best| Exp so far|  W time|  rho|KenW|  Qvar|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+|x|         12|         32|         11|     230021.0000|         32|08:38:04|   NA|  NA|    NA|
+|x|         10|         32|         11|     1018486.500|         59|14:01:27|+0.32|0.66|0.6929|
+|x|          4|         32|         11|     1107072.000|         86|10:13:17|+0.41|0.61|0.6067|
+|x|          9|         32|         11|     1218843.250|        113|08:14:07|+0.46|0.59|0.5546|
+|-|         11|         15|         11|     975253.4000|        140|08:03:44|-0.11|0.11|0.9784|
+|=|          8|         15|        135|     1016062.167|        150|04:07:14|-0.08|0.10|0.9471|
+|=|          6|         15|        135|     1100343.286|        160|04:02:30|+0.01|0.15|0.8679|
+|=|          5|         15|         11|     1313416.000|        170|13:12:00|+0.01|0.14|0.9125|
+|=|          2|         15|        137|     1286835.667|        180|04:06:14|+0.05|0.16|0.8585|
+|=|          7|         15|        135|     1158350.200|        190|02:37:21|+0.04|0.14|0.8538|
+|=|          3|         15|        135|     1261985.000|        200|07:16:43|+0.02|0.11|0.8788|
+|=|          1|         15|        135|     1156893.250|        210|04:01:59|+0.01|0.09|0.8986|
+|=|         13|         15|        135|     1117382.385|        225|04:11:05|+0.01|0.09|0.8977|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+# Stopped because tests without elimination (2) >= elitistLimit (2)
+Best-so-far configuration:         135    mean value:      1117382.385
+Description of the best-so-far configuration:
+    .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT.
+135  135       1    7200       1000000         MERGE           0.30                     0.60                     1.5              5          2.0             0.1                    0.90             2.0                      0.15                    0.85                 10        300              2.5       96
+
+# 2026-08-20 14:13:45 -03: Extracting elites
+# 2026-08-20 14:13:45 -03: Elite configurations (first number is the configuration ID; listed from best to worst according to the sum of ranks):
+    .ID. threads maxTime maxIterations blockMovement maxSegmentSize maxSegmentSizeUpperBound segmentSizeGrowthFactor minSegmentSize neighborBias minNeighborBias neighborBiasDecayFactor minSegmentScore minSegmentScoreLowerBound segmentScoreDecayFactor adaptationInterval lkhMaxTime constructionBias .PARENT. .RANK.           .WEIGHT.
+135  135       1    7200       1000000         MERGE           0.30                     0.60                     1.5              5          2.0             0.1                    0.90             2.0                      0.15                    0.85                 10        300              2.5       96   75.5 0.3333333333333333
+137  137       1    7200       1000000         MERGE           0.30                     0.80                     1.0              5          2.0             0.1                    0.90             1.0                      0.15                    0.85                  5        300              2.5       96   82.5 0.2666666666666667
+11    11       1    7200       1000000         MERGE           0.40                     0.80                     1.0              5          0.5             0.1                    0.90             3.0                      0.15                    0.85                 20        900              2.5       NA   83.5 0.2000000000000000
+98    98       1    7200       1000000         MERGE           0.25                     0.80                     1.5              5          1.5             0.1                    0.90             1.5                      0.15                    0.85                  5        300              2.5       79   92.5 0.1333333333333333
+134  134       1    7200       1000000         MERGE           0.25                     0.60                     1.5              5          1.0             0.1                    0.90             1.0                      0.15                    0.85                  5        300              2.5       98   99.0 0.0666666666666667
+# 2026-08-20 14:13:45 -03: End of iteration 5
+# 2026-08-20 14:13:45 -03: Iteration 6 of 6
+# experimentsUsed: 887
+# remainingBudget: 113
+# currentBudget: 113
+# nbConfigurations: 12
+# 2026-08-20 14:13:45 -03: Update model
+# 2026-08-20 14:13:45 -03: Sample 7 configurations from model
+# 2026-08-20 14:13:45 -03: Computing similarity of configurations . DONE
+# 2026-08-20 14:13:45 -03: Launch race
+# Markers:
+     x No test is performed.
+     c Configurations are discarded only due to capping.
+     - The test is performed and some configurations are discarded.
+     = The test is performed but no configuration is discarded.
+     ! The test is performed and configurations could be discarded but elite configurations are preserved.
+     . All alive configurations are elite and nothing is discarded.
+
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+| |   Instance|      Alive|       Best|       Mean best| Exp so far|  W time|  rho|KenW|  Qvar|
++-+-----------+-----------+-----------+----------------+-----------+--------+-----+----+------+
+|x|         14|         12|         11|     4270068.000|         12|16:49:43|   NA|  NA|    NA|
+|x|          5|         12|         11|     3540058.500|         19|04:19:46|+0.01|0.51|0.7196|
+|x|          3|         12|         11|     3121582.000|         26|05:36:57|+0.15|0.43|0.6700|
+|x|          7|         12|         11|     2341344.750|         33|02:00:00|-0.01|0.24|0.8855|
+|=|          8|         12|         11|     2116124.400|         40|02:10:57|-0.04|0.17|0.9451|
+|=|         13|         12|         98|     1875175.333|         47|02:08:14|+0.01|0.18|0.9103|
+|=|          2|         12|         98|     1757703.714|         54|02:10:59|+0.10|0.22|0.8346|
+|-|         11|          7|         98|     1538102.375|         61|02:01:06|-0.07|0.06|0.8714|
+|=|          9|          7|         98|     1539957.000|         63|02:08:02|-0.09|0.03|0.8903|
+|=|         12|          7|        141|     1409929.800|         65|02:05:25|-0.04|0.06|0.8574|
+|=|          6|          7|         11|     1424491.455|         67|02:09:14|-0.01|0.08|0.8462|
+|=|          4|          7|         11|     1412804.083|         69|02:17:52|+0.00|0.09|0.8328|
+|=|         10|          7|         11|     1443123.154|         71|04:45:57|-0.01|0.07|0.8526|
+|=|          1|          7|         11|     1340106.071|         73|02:03:43|+0.00|0.07|0.8276|
+Error : == irace == running command ''/home/pedro/cbm/tunning/target-runner' 137 44 1587677110 /home/pedro/cbm/instances/cbm_3000_50000_1  threads=1 maxTime=7200 maxIterations=1000000 blockMovement=MERGE maxSegmentSize=0.30 maxSegmentSizeUpperBound=0.80 segmentSizeGrowthFactor=1.0 minSegmentSize=5 neighborBias=2.0 minNeighborBias=0.1 neighborBiasDecayFactor=0.90 minSegmentScore=1.0 minSegmentScoreLowerBound=0.15 segmentScoreDecayFactor=0.85 adaptationInterval=5 lkhMaxTime=300 constructionBias=2.5 2>&1' had status 1
+== irace == The call to targetRunner was:
+/home/pedro/cbm/tunning/target-runner 137 44 1587677110 /home/pedro/cbm/instances/cbm_3000_50000_1  threads=1 maxTime=7200 maxIterations=1000000 blockMovement=MERGE maxSegmentSize=0.30 maxSegmentSizeUpperBound=0.80 segmentSizeGrowthFactor=1.0 minSegmentSize=5 neighborBias=2.0 minNeighborBias=0.1 neighborBiasDecayFactor=0.90 minSegmentScore=1.0 minSegmentScoreLowerBound=0.15 segmentScoreDecayFactor=0.85 adaptationInterval=5 lkhMaxTime=300 constructionBias=2.5
+== irace == The output was:
+/home/pedro/cbm/tunning/target-runner: line 73: 1156754 Killed                  $EXE "${CONFIG_FILE}" > ${STDOUT} 2> ${STDERR}
+sáb 22 ago 2026 22:05:07 UTC: /home/pedro/cbm/tunning/target-runner: error: /home/pedro/cbm/src/CBMLKH/main_prd failed (status 137); see c137-44-1587677110.cfg and c137-44-1587677110.stderr
+== irace == This is not a bug in irace, but means that something failed when running the command(s) above or they were terminated before completion. Try to run the command(s) above from the execution directory '/home/pedro/cbm/tunning' to investigate the issue. See also Appendix B (targetRunner troubleshooting checklist) of the User Guide (https://cran.r-project.org/package=irace/vignettes/irace-package.pdf).
+ Error : == irace == running command ''/home/pedro/cbm/tunning/target-runner' 11 44 1587677110 /home/pedro/cbm/instances/cbm_3000_50000_1  threads=1 maxTime=7200 maxIterations=1000000 blockMovement=MERGE maxSegmentSize=0.40 maxSegmentSizeUpperBound=0.80 segmentSizeGrowthFactor=1.0 minSegmentSize=5 neighborBias=0.5 minNeighborBias=0.1 neighborBiasDecayFactor=0.90 minSegmentScore=3.0 minSegmentScoreLowerBound=0.15 segmentScoreDecayFactor=0.85 adaptationInterval=20 lkhMaxTime=900 constructionBias=2.5 2>&1' had status 1
+== irace == The call to targetRunner was:
+/home/pedro/cbm/tunning/target-runner 11 44 1587677110 /home/pedro/cbm/instances/cbm_3000_50000_1  threads=1 maxTime=7200 maxIterations=1000000 blockMovement=MERGE maxSegmentSize=0.40 maxSegmentSizeUpperBound=0.80 segmentSizeGrowthFactor=1.0 minSegmentSize=5 neighborBias=0.5 minNeighborBias=0.1 neighborBiasDecayFactor=0.90 minSegmentScore=3.0 minSegmentScoreLowerBound=0.15 segmentScoreDecayFactor=0.85 adaptationInterval=20 lkhMaxTime=900 constructionBias=2.5
+== irace == The output was:
+/home/pedro/cbm/tunning/target-runner: line 73: 1156758 Aborted                 (core dumped) $EXE "${CONFIG_FILE}" > ${STDOUT} 2> ${STDERR}
+dom 23 ago 2026 17:40:59 UTC: /home/pedro/cbm/tunning/target-runner: error: /home/pedro/cbm/src/CBMLKH/main_prd failed (status 134); see c11-44-1587677110.cfg and c11-44-1587677110.stderr
+== irace == This is not a bug in irace, but means that something failed when running the command(s) above or they were terminated before completion. Try to run the command(s) above from the execution directory '/home/pedro/cbm/tunning' to investigate the issue. See also Appendix B (targetRunner troubleshooting checklist) of the User Guide (https://cran.r-project.org/package=irace/vignettes/irace-package.pdf).
+Error: == irace == A child process triggered a fatal error
+In addition: Warning message:
+In parallel::mclapply(experiments, exec_target_runner, mc.preschedule = !scenario$loadBalancing,  :
+  2 function calls resulted in an error

@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <chrono>
 #include <exception>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 
@@ -35,6 +37,8 @@ static json metricsToJson(const Metrics& m) {
         {"rejectedMoves", m.rejectedMoves},
         {"lkhCalls", m.lkhCalls},
         {"lkhCacheMisses", m.lkhCacheMisses},
+        {"lkhTimeLimitHits", m.lkhTimeLimitHits},
+        {"stopReason", m.stopReason},
         {"diversifications", m.diversifications},
         // Histogram stop criterion. The flatness fields are null when the
         // criterion is disabled (they stay at infinity, which JSON cannot hold).
@@ -50,13 +54,24 @@ static json metricsToJson(const Metrics& m) {
     };
 }
 
+// Write-then-rename, so a reader never sees a truncated report.
+static void writeAtomically(const string& path, const string& content) {
+    const string tmp = path + ".tmp";
+    {
+        ofstream out(tmp);
+        out << content;
+        out.flush();
+        if (!out) throw runtime_error("Cannot write " + tmp);
+    }
+    filesystem::rename(tmp, path);
+}
+
 static int run(int argc, char* argv[]) {
     if (argc != 2) throw runtime_error("Usage: ./cbmlkh <config_file>");
 
     Config cfg = ArgsUtil::parseConfigFile(argv[1]);
 
     LKHWrapper::configure(cfg.lkhPath, cfg.lkhTmpDir);
-    LKHWrapper::clearTmpDir();
     auto cache = make_shared<LKHCache>();
     CBMLKH cbmlkh(cfg, cache);
 
@@ -110,9 +125,16 @@ static int run(int argc, char* argv[]) {
                                {"histogram", e.histogram}});
         }
 
+        // 1-indexed column ids, as in the instance file.
+        vector<int> permutation(traj.bestSolution.sol.size());
+        for (size_t k = 0; k < permutation.size(); k++) permutation[k] = traj.bestSolution.sol[k] + 1;
+
         json tj = metricsToJson(m);
-        tj["index"] = t;
+        tj["index"] = traj.index;
+        tj["seed"] = traj.seed;
+        tj["timeToBestMs"] = traj.history.empty() ? 0 : traj.history.back().elapsedMs;
         tj["history"] = history;
+        tj["bestPermutation"] = permutation;
         trajectoriesJson.push_back(tj);
     }
 
@@ -129,6 +151,9 @@ static int run(int argc, char* argv[]) {
         {"instance", {{"name", cbmlkh.instanceName}, {"rows", cbmlkh.rows}, {"cols", cbmlkh.cols}}},
         {"config",
          {{"seed", resolved.seed},
+          {"seedBase", cbmlkh.seedBase},
+          {"reproducible", resolved.seed != 0},
+          {"trajectoryOffset", resolved.trajectoryOffset},
           {"threads", resolved.threads},
           {"blockMovement", toString(resolved.blockMovement)},
           {"maxIterations", resolved.maxIterations},
@@ -164,18 +189,24 @@ static int run(int argc, char* argv[]) {
         {"trajectories", trajectoriesJson},
     };
 
-    cout << output.dump(2) << endl;
-
+    if (resolved.outputPath.empty()) {
+        cout << output.dump(2) << endl;
+    } else {
+        writeAtomically(resolved.outputPath, output.dump(2) + "\n");
+    }
     return 0;
 }
 
 int main(int argc, char* argv[]) {
     // Config errors are the common failure mode; surface the message instead of
     // letting the exception escape and abort with a bare "terminate called".
+    int status;
     try {
-        return run(argc, argv);
+        status = run(argc, argv);
     } catch (const exception& e) {
         cerr << e.what() << endl;
-        return 1;
+        status = 1;
     }
+    LKHWrapper::cleanup();
+    return status;
 }

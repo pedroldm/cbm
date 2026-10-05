@@ -20,7 +20,7 @@ import time
 import uuid
 from pathlib import Path
 
-from ..config import CBMLKH_BINARY_CANDIDATES, CBMLKH_CONFIG, CBMLKH_DIR, CBMLKH_WORK_DIRNAME
+from ..config import CBMLKH_BINARY_CANDIDATES, CBMLKH_CONFIG, CBMLKH_DIR, CBMLKH_WORK_DIRNAME, LKH_PATH
 from ..instance import CBMInstance
 from .base import Solver
 
@@ -66,6 +66,7 @@ class CBMLKHSolver(Solver):
     def solve(self, instance: CBMInstance, instance_path: Path) -> dict:
         cfg = dict(self.config)
         cfg["instancePath"] = str(instance_path)
+        cfg.setdefault("lkhPath", LKH_PATH)  # the binary has no compiled-in LKH path
 
         cfg_file = self.work_dir / f"{instance.name}_{uuid.uuid4().hex[:12]}.cfg"
         cfg_file.write_text("".join(f"{k}={v}\n" for k, v in cfg.items()))

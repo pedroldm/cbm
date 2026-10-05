@@ -3,29 +3,34 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <exception>
 #include <filesystem>
-#include <functional>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <stdexcept>
-#include <thread>
 #include <tuple>
 #include <utility>
+
+#include "../common/cbm_seed.h"
 
 using namespace std;
 
 namespace {
-// Per-thread PRNG. A single shared std::mt19937 is not safe under the OpenMP
-// parallel region in run(): concurrent access is a data race that corrupts the
-// engine state. Each thread lazily constructs its own engine, seeded distinctly
-// from random_device combined with the thread id.
+// Per-thread PRNG (a shared engine would be a data race under OpenMP). run()
+// reseeds it at the start of every trajectory, so its stream depends only on
+// the trajectory index, never on which OS thread executes the trajectory.
 std::mt19937& threadEngine() {
-    static thread_local std::mt19937 engine(std::random_device{}() ^ static_cast<unsigned>(std::hash<std::thread::id>{}(std::this_thread::get_id())));
+    static thread_local std::mt19937 engine;
     return engine;
 }
 
-// Re-seed the calling thread's engine, replacing the nondeterministic default.
-void seedThreadEngine(unsigned long seed) { threadEngine().seed(static_cast<std::mt19937::result_type>(seed)); }
+// Order-sensitive 64-bit hash of a canonical (sorted) LKH sub-problem.
+uint64_t hashColumns(const vector<int>& columns) {
+    uint64_t h = cbm_splitmix64(columns.size());
+    for (int c : columns) h = cbm_splitmix64(h ^ static_cast<uint64_t>(c));
+    return h;
+}
 }  // namespace
 
 CBMLKH::CBMLKH(const Config& cfg, shared_ptr<LKHCache> cache)
@@ -38,29 +43,44 @@ CBMLKH::CBMLKH(const Config& cfg, shared_ptr<LKHCache> cache)
       lkhCache(cache) {
     instanceName = filesystem::path(cfg.instancePath).filename().string();
     this->cfg.resolveSegmentSizes(cols);
+    // seed = 0 asks for a nondeterministic run: draw the base once and derive
+    // everything from it as usual, so the report still names every seed.
+    seedBase = cfg.seed != 0 ? cfg.seed : (static_cast<unsigned long>(random_device{}()) | 1UL);
 }
 
+uint32_t CBMLKH::trajectorySeed(int globalIndex) const { return cbm_derive_seed(seedBase, static_cast<uint64_t>(globalIndex)); }
+
 vector<Trajectory> CBMLKH::run() {
+    // Indexed slots: the output order is the trajectory index, not the order in
+    // which threads happen to finish.
+    vector<optional<Trajectory>> slots(cfg.threads);
+    exception_ptr failure;
+
+#pragma omp parallel for num_threads(cfg.threads) schedule(static, 1)
+    for (int i = 0; i < cfg.threads; i++) {
+        // An exception must not escape an OpenMP region (it would terminate the
+        // process without a message), so it is carried out and rethrown below.
+        try {
+            const int globalIndex = cfg.trajectoryOffset + i;
+            const uint32_t seed = trajectorySeed(globalIndex);
+            threadEngine().seed(seed);
+
+            Solution initial = greedyConstruction();
+            completeEval(initial);
+            Trajectory trajectory = LKHILS(initial);
+            trajectory.index = globalIndex;
+            trajectory.seed = seed;
+            slots[i] = std::move(trajectory);
+        } catch (...) {
+#pragma omp critical
+            if (!failure) failure = current_exception();
+        }
+    }
+    if (failure) rethrow_exception(failure);
+
     vector<Trajectory> trajectories;
     trajectories.reserve(cfg.threads);
-    vector<Solution> initialSolutions(cfg.threads);
-
-#pragma omp parallel for num_threads(cfg.threads)
-    for (int i = 0; i < cfg.threads; i++) {
-        // Seed per trajectory index rather than per OS thread: OpenMP does not
-        // guarantee which thread runs which iteration, so seeding by thread id
-        // would make the result depend on scheduling. Trajectory i always gets
-        // seed + i, so it replays identically regardless of the mapping.
-        if (cfg.seed != 0) seedThreadEngine(cfg.seed + static_cast<unsigned long>(i));
-
-        initialSolutions[i] = greedyConstruction();
-        completeEval(initialSolutions[i]);
-        Trajectory trajectory = LKHILS(initialSolutions[i]);
-        // Concurrent push_back on a shared vector is a data race; serialize the
-        // hand-off (the expensive LKHILS work above stays parallel).
-#pragma omp critical
-        trajectories.push_back(std::move(trajectory));
-    }
+    for (auto& slot : slots) trajectories.push_back(std::move(*slot));
     return trajectories;
 }
 
@@ -93,13 +113,18 @@ Trajectory CBMLKH::LKHILS(Solution& initial) {
     auto start = chrono::steady_clock::now();
     auto deadline = start + chrono::seconds(cfg.maxTime);
 
+    metrics.stopReason = "maxIterations";
     int i = 0;
     for (; i < cfg.maxIterations; i++) {
         auto now = chrono::steady_clock::now();
-        if (now >= deadline) break;
+        if (now >= deadline) {
+            metrics.stopReason = "maxTime";
+            break;
+        }
 
         if (histogramStopEnabled && iterationsWithoutFlattening >= cfg.histogramStopInterval) {
             metrics.histogramStop = true;
+            metrics.stopReason = "histogram";
             break;
         }
 
@@ -203,16 +228,23 @@ Solution CBMLKH::ILSNeighbor(const Solution& s, const AdaptiveParameters& adapti
 void CBMLKH::applyLKH(Solution& s, const CandidateRegion& cr, Metrics& metrics) {
     auto lkhStart = chrono::steady_clock::now();
 
+    // LKH sees the sub-problem in canonical (sorted) column order and with a
+    // seed derived from its contents, so its answer is a function of the column
+    // set alone. That is what the cache key already assumes, and it makes the
+    // result independent of which trajectory computed (and cached) it first.
     vector<int> subsegment(s.sol.begin() + cr.start, s.sol.begin() + cr.end + 1);
+    sort(subsegment.begin(), subsegment.end());
 
     metrics.recordBlockSize(static_cast<int>(subsegment.size()));
     metrics.lkhCalls++;
 
     vector<int> lkhSolution;
     if (!lkhCache->get(subsegment, lkhSolution)) {
-        lkhSolution = lkhWrapper.run(subsegment, instanceName, cfg.lkhMaxTime);
+        LKHResult result = lkhWrapper.run(subsegment, cfg.lkhMaxTime, cbm_derive_seed(seedBase, hashColumns(subsegment)));
+        lkhSolution = std::move(result.tour);
         lkhCache->put(subsegment, lkhSolution);
         metrics.lkhCacheMisses++;
+        if (result.timeLimitHit) metrics.lkhTimeLimitHits++;
     }
 
     metrics.lkhTimeMs += chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - lkhStart).count();
@@ -440,7 +472,10 @@ int CBMLKH::nextInsertion(int current, unordered_set<int>& remaining) {
     candidates.reserve(remaining.size());
     for (int candidate : remaining) candidates.push_back({rows - columnStore.hamming(current, candidate), candidate});
 
-    sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) { return get<0>(a) > get<0>(b); });
+    // Ties broken by column id: `remaining` is unordered, so without it the
+    // ranking would depend on the hash table's iteration order.
+    sort(candidates.begin(), candidates.end(),
+         [](const auto& a, const auto& b) { return get<0>(a) != get<0>(b) ? get<0>(a) > get<0>(b) : get<1>(a) < get<1>(b); });
 
     size_t chosen = sampleRankIndex(candidates.size(), cfg.constructionBias);
     return get<1>(candidates[chosen]);
@@ -524,7 +559,7 @@ vector<CandidateRegion> CBMLKH::findDenseSegments(Solution& s, const AdaptivePar
         return segments;
     }
 
-    sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
+    stable_sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
 
     return segments;
 }
@@ -557,7 +592,7 @@ vector<CandidateRegion> CBMLKH::findPeakColumns(Solution& s, const AdaptiveParam
         return peaks;
     }
 
-    sort(peaks.begin(), peaks.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
+    stable_sort(peaks.begin(), peaks.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
 
     return peaks;
 }

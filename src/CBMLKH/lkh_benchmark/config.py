@@ -61,14 +61,16 @@ CBMLKH_TIMEOUT: float | None = None
 # Config fed to the C++ binary (keys mirror parameters.md; instancePath is set
 # per run). Every value here is used verbatim - nothing overrides it downstream.
 # Source: irace 4.2.0 tuning run finished 2026-08-20, best-so-far configuration
-# 135 (elite rank 1 of iteration 5). Reproduced exactly, including the budget /
-# resource knobs irace held fixed (threads, maxTime, maxIterations).
+# 135 (elite rank 1 of iteration 5; tunning/output.txt), including the budget /
+# resource knobs irace held fixed (threads, maxTime). Exceptions, as in the final
+# experiments (experiments/cbm_experiments/methods.py): maxIterations = 1000
+# (irace: 1000000) and lkhMaxTime = 20% of maxTime (irace: 300).
 CBMLKH_CONFIG: dict = {
     "threads": 1,
     "blockMovement": "MERGE",
-    "maxIterations": 1000000,  # effectively unbounded; maxTime is the real budget
+    "maxIterations": 1000,
     "maxTime": 7200,  # seconds
-    "lkhMaxTime": 600,  # seconds (TIME_LIMIT in the .par file)
+    "lkhMaxTime": 1440,  # seconds (TIME_LIMIT in the .par file) = 0.2 * maxTime
     "constructionBias": 2.5,
     "neighborBias": 2.0,
     "minNeighborBias": 0.1,
