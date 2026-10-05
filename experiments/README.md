@@ -31,7 +31,10 @@ environment-variable alternative:
 | `--lkh-path` | `LKH_PATH` | `<repo>/src/LKH3/LKH` |
 | `--ens-bin`, `--ils-bin`, `--cbmlkh-bin`, `--lkh-standalone-bin` | `CBM_ENS_BIN`, … | built locations |
 
-Also useful there: `--cpus 0-15` or `--max-cpus N`, `--mem-budget-gb`, and `--work-root`
+CPUs are detected on the machine that runs the experiment: one logical CPU per
+physical core, minus `--reserve-cores` (default **1**: the core holding CPU 0 is left
+free for the OS and the runner). CBMLKH then uses `min(10, CPUs)` threads.
+Also useful there: `--cpus 1-15` (exact list, no core reserved) or `--max-cpus N`, `--mem-budget-gb`, and `--work-root`
 (put scratch on a large local disk, not tmpfs). If you move an experiment
 directory, pass `--instance-dir` to remap instance paths. Instances are checked by
 SHA-256 before use.
@@ -148,7 +151,8 @@ exactly `threads` OpenMP workers, each running at most one LKH child, so it uses
 
   While CBMLKH work remains, `T` CPUs (and its memory estimate) are kept as a lane
   for it, so single-thread jobs cannot starve it.
-* **Resource budget.** CPU budget defaults to one logical CPU per physical core. Jobs
+* **Resource budget.** CPU budget defaults to one logical CPU per physical core, minus
+  one reserved core (`--reserve-cores`). Jobs
   also reserve estimated RAM (budget defaults to 85 % of MemTotal) and scratch disk
   (`methods.estimate_resources`: the explicit distance matrices dominate). A job
   larger than the whole budget runs alone.

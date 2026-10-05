@@ -72,8 +72,9 @@ def add_design(p: argparse.ArgumentParser) -> None:
 
 def add_resources(p: argparse.ArgumentParser) -> None:
     g = p.add_argument_group("resources")
-    g.add_argument("--cpus", default=None, help="CPU ids the runner may use, e.g. '0-15' (default: one per physical core)")
-    g.add_argument("--max-cpus", type=int, default=None, help="use only the first N CPUs of the default set")
+    g.add_argument("--cpus", default=None, help="exact CPU ids the runner may use, e.g. '1-15' (default: one per physical core, minus --reserve-cores)")
+    g.add_argument("--reserve-cores", type=int, default=1, help="physical cores left free for the OS and the runner, starting with the one holding CPU 0 (default 1; ignored with --cpus)")
+    g.add_argument("--max-cpus", type=int, default=None, help="use at most N CPUs of the resulting set")
     g.add_argument("--no-pin", action="store_true", help="do not pin jobs to their reserved CPUs")
     g.add_argument("--mem-budget-gb", type=float, default=None, help="RAM the jobs may reserve (default 85%% of MemTotal)")
     g.add_argument("--disk-margin-gb", type=float, default=5.0, help="free disk to always keep on the work filesystem")
@@ -92,11 +93,18 @@ def add_solvers(p: argparse.ArgumentParser) -> None:
 
 
 def resolve_cpus(args) -> List[int]:
-    cpus = parse_cpu_list(args.cpus) if args.cpus else physical_core_cpus()
+    if args.cpus:
+        cpus = parse_cpu_list(args.cpus)
+    else:
+        # physical_core_cpus() is sorted, so the first entry is the core holding CPU 0
+        # (or the lowest allowed one), where the OS does most of its own work.
+        if args.reserve_cores < 0:
+            raise ExperimentError("--reserve-cores must be >= 0")
+        cpus = physical_core_cpus()[args.reserve_cores :]
     if args.max_cpus:
         cpus = cpus[: args.max_cpus]
     if not cpus:
-        raise ExperimentError("no CPUs available")
+        raise ExperimentError("no CPUs left for jobs (check --cpus / --reserve-cores / --max-cpus)")
     return cpus
 
 
