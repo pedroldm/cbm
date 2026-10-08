@@ -365,18 +365,22 @@ class Runner:
             time.sleep(self.opt.poll_interval_s)
 
     def _schedule(self, pending: List[dict]) -> None:
-        cbmlkh_pending = [j for j in pending if j["method"] == "cbmlkh"]
-        cbmlkh_running = any(rj.job["method"] == "cbmlkh" for rj in self.running.values())
-        # CBMLKH gets a dedicated lane while any of it remains, so single-thread
-        # jobs cannot starve it of the CPUs it needs at once.
-        next_cbmlkh = cbmlkh_pending[0] if (cbmlkh_pending and not cbmlkh_running) else None
-        lane_cpus = next_cbmlkh["cpus"] if next_cbmlkh else 0
-        lane_mem = next_cbmlkh["est_mem_bytes"] if next_cbmlkh and next_cbmlkh["est_mem_bytes"] <= self.opt.mem_budget_bytes else 0
-        for job in cbmlkh_pending[:1] + [j for j in pending if j["method"] != "cbmlkh"]:
+        # Jobs are tried in plan order (instance by instance, every method of an
+        # instance before the next one), so the methods alternate. Once the next
+        # CBMLKH job is reached it holds a lane of CPUs and memory, so the
+        # single-thread jobs after it cannot starve it of the CPUs it needs at once.
+        cbmlkh_reached = any(rj.job["method"] == "cbmlkh" for rj in self.running.values())  # one CBMLKH at a time
+        lane_cpus, lane_mem = 0, 0
+        for job in pending:
             free = self._free_cpus()
             is_cbmlkh = job["method"] == "cbmlkh"
             if is_cbmlkh:
-                if cbmlkh_running or len(free) < job["cpus"]:
+                if cbmlkh_reached:
+                    continue
+                cbmlkh_reached = True
+                lane_cpus = job["cpus"]
+                lane_mem = job["est_mem_bytes"] if job["est_mem_bytes"] <= self.opt.mem_budget_bytes else 0
+                if len(free) < job["cpus"]:
                     continue
             elif len(free) - lane_cpus < job["cpus"]:
                 break
@@ -386,7 +390,7 @@ class Runner:
             if verdict != "ok":
                 continue
             if self._launch(job, free[: job["cpus"]]) and is_cbmlkh:
-                cbmlkh_running, lane_cpus, lane_mem = True, 0, 0
+                lane_cpus, lane_mem = 0, 0
             if self.opt.max_jobs is not None and self.launched >= self.opt.max_jobs:
                 return
 

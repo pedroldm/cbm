@@ -138,6 +138,16 @@ class TestResources(RunnerTestCase):
             self.assertEqual(len(e["affinity"]), expected)
             self.assertEqual(e["omp"], str(expected))
 
+    def test_methods_alternate_when_cbmlkh_takes_every_cpu(self):
+        cpus = available_cpus(2)
+        self.set_control({n: {"sleep": 0.2} for n in ("t1", "t2", "t3")})
+        self.run_cli(self.base_args(cpus=2, extra=["--methods", "ens,cbmlkh", "--repetitions", "2", "--cbmlkh-threads", str(len(cpus))]))
+        order = [(e["instance"], e["kind"]) for e in sorted(self.fake_logs(), key=lambda e: e["start"])]
+        instances = [inst for inst, _ in order]
+        self.assertEqual(instances, sorted(instances), f"instances were not run one after another: {order}")
+        for name in ("t1", "t2", "t3"):
+            self.assertEqual({k for i, k in order if i == name}, {"ens", "cbmlkh"})
+
     def test_cbmlkh_wider_than_budget_is_refused(self):
         rc = self.run_cli(self.base_args(cpus=2, extra=["--methods", "cbmlkh", "--repetitions", "4", "--cbmlkh-threads", "4"]))
         self.assertEqual(rc, 2)
