@@ -181,6 +181,12 @@ def setup_logging(exp_dir: Optional[Path]) -> None:
 
 def cmd_run(args) -> int:
     cpus = resolve_cpus(args)
+    # Without design options, `run` resumes the named experiment, or 'final' by
+    # default. Re-deriving the design from the instance directory would make a
+    # plain resume depend on that directory's current contents (e.g. instances
+    # deleted after an `exclude`), and refuse to continue a valid experiment.
+    if args.name is None and not design_given(args) and (args.outputs / "final" / "experiment.json").exists():
+        args.name = "final"
     exists = args.name and (args.outputs / args.name / "experiment.json").exists()
     spec = build_spec(args, cpus) if (design_given(args) or not exists) else None
     exp_dir = experiment_dir(args, spec)

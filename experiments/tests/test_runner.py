@@ -299,6 +299,21 @@ class TestExcludeInstances(RunnerTestCase):
         self.assertIn("t3", manifest["excluded_instances"])
 
         # Reversible: restoring brings the jobs back (and the missing file is reported again).
+        # (continued below)
+        self._restore_checks(excl, resume)
+
+    def test_plain_run_resumes_final_after_instances_were_deleted(self):
+        unnamed = [a for a in self.base_args() if a not in ("--name", "exp")]
+        self.assertEqual(self.run_cli(unnamed + ["--max-jobs", "1"]), 0)  # full design -> 'final'
+        self.assertTrue((self.exp_dir("final") / "experiment.json").exists())
+        (self.instances / "t3").unlink()
+        self.assertEqual(self.run_cli(["exclude", "--outputs", str(self.outputs), "--instances", "t3", "--reason", "x"]), 0)
+        # Used to fail: the design was re-derived from the (now smaller) instance dir -> fingerprint mismatch.
+        self.assertEqual(self.run_cli(unnamed + ["--max-jobs", "1"]), 0)
+        states, _ = self.states("final")
+        self.assertEqual(len(states), 2)
+
+    def _restore_checks(self, excl, resume):
         self.assertEqual(self.run_cli(excl + ["--instances", "t3", "--restore"]), 0)
         self.assertNotIn("t3", json.loads((self.exp_dir() / "experiment.json").read_text())["excluded_instances"])
         self.assertEqual(self.run_cli(resume), 2)
