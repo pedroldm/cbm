@@ -30,7 +30,7 @@ import statistics
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
-from .plan import run_id
+from .plan import active_instance_names, active_jobs, run_id
 from .state import JOB_STATUSES, PENDING
 from .util import atomic_write_text, read_json
 
@@ -109,7 +109,7 @@ class RecordCache:
 def collect_rows(exp_dir: Path, experiment: dict, cache: Optional[RecordCache] = None) -> List[dict]:
     cache = cache or RecordCache()
     rows = []
-    for job in experiment["jobs"]:
+    for job in active_jobs(experiment):
         job_dir = exp_dir / "runs" / job["job_id"]
         state = read_json(job_dir / "state.json") or {"status": PENDING}
         for rep in job["repetitions"]:
@@ -170,7 +170,7 @@ def generate(exp_dir: Path, reference: Optional[Dict[str, float]] = None, cache:
     reference = reference or {}
     rows = collect_rows(exp_dir, experiment, cache)
     methods = experiment["spec"]["methods"]
-    instances = [i["name"] for i in experiment["spec"]["instances"]]
+    instances = active_instance_names(experiment)
 
     def ok(r: dict) -> bool:
         return r["status"] == "completed" and r.get("objective") is not None

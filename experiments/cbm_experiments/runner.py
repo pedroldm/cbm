@@ -39,7 +39,7 @@ from typing import Dict, List, Optional, Set
 from . import methods as M
 from . import procs, report
 from .instances import InstanceCache
-from .plan import build_jobs, fingerprint, run_id
+from .plan import active_jobs, build_jobs, excluded_instances, fingerprint, run_id
 from .schema import SCHEMA_VERSION, load_schema, validate
 from .state import COMPLETED, FAILED, HARD_TIMEOUT, INTERRUPTED, PENDING, RUNNING, FileLock, JobState
 from .util import atomic_write_json, atomic_write_text, read_json, sha256_file, tail, utc_now
@@ -196,7 +196,10 @@ class Runner:
         self.spec = experiment["spec"]
         self.paths = paths
         self.opt = options
-        self.jobs: List[dict] = experiment["jobs"]
+        # Jobs of instances excluded after planning are neither run nor reported.
+        self.jobs: List[dict] = active_jobs(experiment)
+        if not self.jobs:
+            raise ExperimentError(f"every instance of {self.exp_dir} is excluded; nothing to run")
         if instance_dir is not None:  # experiment moved to another machine
             for job in self.jobs:
                 job["instance"] = dict(job["instance"], path=str(Path(instance_dir).resolve() / job["instance"]["name"]))
@@ -238,6 +241,7 @@ class Runner:
         try:
             self.verify_completed_jobs()
             self.recover_stale_jobs()
+            self._check_instances_present()
             self._loop()
         finally:
             for s, handler in previous.items():
@@ -332,6 +336,22 @@ class Runner:
                 st.transition(INTERRUPTED, "stale_running_recovered", attempt=attempt.get("number"),
                               reason="runner stopped without finalizing (crash, kill or power loss)" if same_boot else "machine rebooted")
             self._dirty_manifest = True
+
+    def _check_instances_present(self) -> None:
+        """Refuse to start when an instance that still has work to do is gone.
+
+        Otherwise every job of a deleted instance would be launched and recorded
+        as a failure, one by one. Dropping instances on purpose is done with the
+        `exclude` command, which removes them from the run and the reports.
+        """
+        missing = sorted({j["instance"]["name"] for j in self.jobs
+                          if self._eligible(self.states[j["job_id"]]) and not Path(j["instance"]["path"]).is_file()})
+        if missing:
+            shown = ", ".join(missing[:10]) + (f" (+{len(missing) - 10} more)" if len(missing) > 10 else "")
+            raise ExperimentError(
+                f"{len(missing)} instance file(s) with pending work are missing: {shown}. Restore them (or pass --instance-dir), "
+                f"or drop them with: run_experiments.py exclude --name {self.exp_dir.name} --instances <names or patterns> --reason ..."
+            )
 
     # -- scheduling ----------------------------------------------------------
     def _eligible(self, st: JobState) -> bool:
@@ -711,7 +731,7 @@ class Runner:
         atomic_write_json(self.exp_dir / "manifest.json", {
             "schema_version": SCHEMA_VERSION, "experiment": self.experiment["name"], "fingerprint": self.experiment["fingerprint"],
             "partial": self.experiment["partial"], "generated_at": utc_now(), "note": "derived snapshot; runs/*/state.json is authoritative",
-            "counts": self.counts(), "jobs": jobs,
+            "excluded_instances": excluded_instances(self.experiment), "counts": self.counts(), "jobs": jobs,
         })
         self._dirty_manifest = False
         self._last_manifest = time.monotonic()

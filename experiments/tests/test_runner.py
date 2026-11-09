@@ -264,6 +264,46 @@ class TestResume(RunnerTestCase):
         self.assertTrue(superseded, "the failed attempt's record was not preserved")
 
 
+class TestExcludeInstances(RunnerTestCase):
+    def test_excluded_instances_are_skipped_on_resume_and_left_out_of_reports(self):
+        create = self.base_args(extra=["--methods", "ens,lkh", "--repetitions", "1", "--max-jobs", "2"])
+        self.assertEqual(self.run_cli(create), 0)
+        states, exp = self.states()
+        fingerprint = exp["fingerprint"]
+        self.assertEqual({s["status"] for s in states.values()}, {"completed"})
+        self.assertEqual({j.split("__")[1] for j in states}, {"t1"})
+
+        (self.instances / "t3").unlink()  # dropped by the user before resuming
+        resume = self.base_args()  # no design options: resume the stored plan
+        self.assertEqual(self.run_cli(resume), 2, "a missing instance must stop the resume, not fail its jobs one by one")
+        states, _ = self.states()
+        self.assertFalse(any("__t3__" in j for j in states))
+
+        excl = ["exclude", "--outputs", str(self.outputs), "--name", "exp"]
+        self.assertEqual(self.run_cli(excl + ["--instances", "t9*", "--reason", "x"]), 2, "a pattern matching nothing is a typo")
+        self.assertEqual(self.run_cli(excl + ["--instances", "t3"]), 2, "--reason is mandatory")
+        self.assertEqual(self.run_cli(excl + ["--instances", "t3", "--reason", "time budget"]), 0)
+        self.assertEqual(self.run_cli(resume), 0)
+
+        states, exp = self.states()
+        self.assertEqual(exp["fingerprint"], fingerprint)
+        self.assertEqual(exp["excluded_instances"]["t3"]["reason"], "time budget")
+        self.assertEqual(len(exp["jobs"]), 3 * 2, "the plan itself is never rewritten")
+        self.assertEqual({j.split("__")[1] for j in states}, {"t1", "t2"})
+        self.assertEqual({s["status"] for s in states.values()}, {"completed"})
+        for which in ("detailed", "summary", "comparison"):
+            self.assertNotIn("t3", {r["instance"] for r in self.read_csv("exp", which)}, which)
+        self.assertEqual({r["instances"] for r in self.read_csv("exp", "methods")}, {"2"})
+        manifest = json.loads((self.exp_dir() / "manifest.json").read_text())
+        self.assertEqual(len(manifest["jobs"]), 2 * 2)
+        self.assertIn("t3", manifest["excluded_instances"])
+
+        # Reversible: restoring brings the jobs back (and the missing file is reported again).
+        self.assertEqual(self.run_cli(excl + ["--instances", "t3", "--restore"]), 0)
+        self.assertNotIn("t3", json.loads((self.exp_dir() / "experiment.json").read_text())["excluded_instances"])
+        self.assertEqual(self.run_cli(resume), 2)
+
+
 class TestDesignProtection(RunnerTestCase):
     def test_partial_design_cannot_be_named_final(self):
         rc = self.run_cli(self.base_args(name="final", extra=["--methods", "ens"]))

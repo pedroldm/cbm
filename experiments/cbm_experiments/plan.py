@@ -140,3 +140,27 @@ def _job(method: str, inst: dict, reps: List[int], seed: int, threads: int, para
 
 def run_id(method: str, instance: str, rep: int) -> str:
     return f"{method}__{instance}__r{rep:02d}"
+
+
+# ---------------------------------------------------------------------------
+# Instance exclusions
+# ---------------------------------------------------------------------------
+# The plan above is immutable, but instances can be dropped from an existing
+# experiment afterwards (e.g. to fit the remaining time budget). Exclusions are
+# recorded in experiment.json under "excluded_instances" ({name: {reason, at}})
+# rather than by deleting jobs, so the design and its fingerprint stay intact,
+# the decision is auditable, and it can be reverted. Every consumer (runner,
+# status, reports, manifest) goes through these helpers.
+def excluded_instances(experiment: dict) -> Dict[str, dict]:
+    return experiment.get("excluded_instances") or {}
+
+
+def active_jobs(experiment: dict) -> List[dict]:
+    """The planned jobs minus those of excluded instances."""
+    excluded = excluded_instances(experiment)
+    return [j for j in experiment["jobs"] if j["instance"]["name"] not in excluded]
+
+
+def active_instance_names(experiment: dict) -> List[str]:
+    excluded = excluded_instances(experiment)
+    return [i["name"] for i in experiment["spec"]["instances"] if i["name"] not in excluded]

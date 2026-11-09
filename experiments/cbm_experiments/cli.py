@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import logging
 import os
@@ -13,10 +14,10 @@ from typing import Dict, List, Optional
 from . import report
 from .instances import discover_instances
 from .methods import METHOD_IDS
-from .plan import DEFAULT_HARD_LIMIT_S, DEFAULT_REPETITIONS, DEFAULT_ROOT_SEED, DEFAULT_SOFT_LIMIT_S, build_jobs, fingerprint, make_spec
+from .plan import active_jobs, excluded_instances, DEFAULT_HARD_LIMIT_S, DEFAULT_REPETITIONS, DEFAULT_ROOT_SEED, DEFAULT_SOFT_LIMIT_S, build_jobs, fingerprint, make_spec
 from .runner import REPO_ROOT, ExperimentError, Options, Runner, create_or_load, mem_total_bytes, physical_core_cpus, required_binaries
-from .state import JobState
-from .util import read_json
+from .state import FileLock, JobState
+from .util import atomic_write_json, read_json, utc_now
 
 log = logging.getLogger("cbm_experiments")
 
@@ -249,11 +250,52 @@ def cmd_status(args) -> int:
     exp_dir = _load_existing(args)
     experiment = read_json(exp_dir / "experiment.json")
     counts: Dict[str, Dict[str, int]] = {}
-    for job in experiment["jobs"]:
+    for job in active_jobs(experiment):
         st = JobState(exp_dir / "runs" / job["job_id"], job["job_id"]).status
         counts.setdefault(job["method"], {}).setdefault(st, 0)
         counts[job["method"]][st] += len(job["repetitions"])
-    print(json.dumps({"experiment": str(exp_dir), "partial": experiment["partial"], "repetitions_by_status": counts}, indent=2))
+    print(json.dumps({"experiment": str(exp_dir), "partial": experiment["partial"],
+                      "excluded_instances": sorted(excluded_instances(experiment)), "repetitions_by_status": counts}, indent=2))
+    return 0
+
+
+def cmd_exclude(args) -> int:
+    """Drop instances from an existing experiment (or restore them).
+
+    The plan and fingerprint are untouched; the exclusion is recorded in
+    experiment.json, and excluded instances are skipped by `run` and left out
+    of `status`, the manifest and every report. Their records stay on disk.
+    """
+    exp_dir = _load_existing(args)
+    lock = FileLock(exp_dir / "runner.lock")
+    if not lock.try_acquire():
+        raise ExperimentError(f"a runner is active on {exp_dir}; stop it before changing the excluded instances")
+    try:
+        experiment = read_json(exp_dir / "experiment.json")
+        planned = [i["name"] for i in experiment["spec"]["instances"]]
+        patterns = [p.strip() for p in args.instances.split(",") if p.strip()]
+        unmatched = [p for p in patterns if not fnmatch.filter(planned, p)]
+        if unmatched:
+            raise ExperimentError(f"no planned instance matches: {', '.join(unmatched)}")
+        selected = sorted({n for p in patterns for n in fnmatch.filter(planned, p)}, key=planned.index)
+        excluded = dict(excluded_instances(experiment))
+        if args.restore:
+            changed = [n for n in selected if excluded.pop(n, None) is not None]
+        else:
+            if not args.reason:
+                raise ExperimentError("--reason is required when excluding instances (it is recorded in experiment.json)")
+            changed = [n for n in selected if n not in excluded]
+            for n in changed:
+                excluded[n] = {"reason": args.reason, "at": utc_now()}
+        if len(excluded) == len(planned):
+            raise ExperimentError("refusing to exclude every instance of the experiment")
+        experiment["excluded_instances"] = excluded
+        atomic_write_json(exp_dir / "experiment.json", experiment)
+        report.generate(exp_dir)
+    finally:
+        lock.release()
+    print(json.dumps({"experiment": str(exp_dir), "action": "restored" if args.restore else "excluded", "changed": changed,
+                      "excluded_total": len(excluded), "active_instances": len(planned) - len(excluded)}, indent=2))
     return 0
 
 
@@ -292,6 +334,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     status = sub.add_parser("status", help="repetition counts per method and status")
     add_common(status)
 
+    exc = sub.add_parser("exclude", help="drop instances from an existing experiment: not run, not reported (reversible)")
+    add_common(exc)
+    exc.add_argument("--instances", required=True, help="comma-separated instance names or shell patterns, e.g. 'cbm_4500_*,cbm_5000_*'")
+    exc.add_argument("--reason", default=None, help="why they are dropped (required unless --restore)")
+    exc.add_argument("--restore", action="store_true", help="undo: bring the matching excluded instances back")
+
     rep = sub.add_parser("report", help="regenerate the CSV reports from the persisted records")
     add_common(rep)
     rep.add_argument("--reference", type=Path, default=None, help="CSV instance,value of best known solutions")
@@ -300,7 +348,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.command != "run":
         setup_logging(None)
     try:
-        return {"run": cmd_run, "plan": cmd_plan, "status": cmd_status, "report": cmd_report}[args.command](args)
+        return {"run": cmd_run, "plan": cmd_plan, "status": cmd_status, "exclude": cmd_exclude, "report": cmd_report}[args.command](args)
     except ExperimentError as exc:
         log.error("%s", exc)
         return 2
